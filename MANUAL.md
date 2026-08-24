@@ -40,7 +40,7 @@ Si un día no seguís ninguna rutina de la lista, tocá "Sesión libre" arriba d
 
 Acá vive el plan completo: A, B, C, D, D+ (para semanas de 4 días) y E.
 
-- **Editar**: tocá una rutina para cambiar series, rango de repeticiones, RIR, descanso, o para agregar/quitar/reordenar ejercicios.
+- **Editar**: tocá una rutina para cambiar series, rango de repeticiones, RIR, descanso, o para agregar/quitar/reordenar ejercicios. El botón ⇄ en una fila te deja reemplazar solo ese ejercicio puntual por otro de la base pública, sin tocar las demás filas ni los valores ya cargados de esa.
 - **Duplicar**: por si querés hacer una variante sin perder la original.
 - **Borrar**: no toca el historial de sesiones ya hechas, solo la plantilla.
 - **Superserie**: en el editor, poné la misma letra (A, B…) en el campo "Superserie" de dos ejercicios para que se agrupen y se entrenen intercalados.
@@ -52,13 +52,16 @@ Acá vive el plan completo: A, B, C, D, D+ (para semanas de 4 días) y E.
 La biblioteca completa, organizada por grupo muscular.
 
 **Ver la ejecución**
-Tocá cualquier ejercicio: vas a ver las fotos (de una base pública de ejercicios, sin derechos de autor), los pasos numerados y el error más común a evitar.
+Tocá cualquier ejercicio: vas a ver las fotos (de una base pública de ejercicios, sin derechos de autor), los pasos numerados y el error más común a evitar. Tocá una foto para verla en grande.
 
 **Crear uno propio**
 Tocá "+ Nuevo". Podés escribirlo a mano, o tocar **"Buscar en la base pública"** para traer un ejercicio ya armado (nombre, grupo muscular, pasos y fotos) desde una base de más de 800 ejercicios — después ajustás lo que quieras y guardás. La primera búsqueda descarga esa base (~1 MB, necesita wifi); las siguientes búsquedas funcionan sin conexión.
 
 **Editar o borrar**
 Cualquier ejercicio se puede modificar, incluidos los de fábrica. Si lo borrás y estaba en alguna rutina, te avisa antes.
+
+**Reemplazar un ejercicio sin perder el historial**
+Si editás un ejercicio que ya existe, en vez de "Buscar en la base pública" vas a ver **"Reemplazar por otro de la base pública"**: sobrescribe nombre, grupo, pasos y fotos con los del que elijas, pero mantiene el mismo ejercicio por dentro — todas las rutinas y sesiones que ya lo usaban siguen apuntando a él, sin romperse ni duplicarse.
 
 ---
 
