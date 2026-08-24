@@ -520,9 +520,19 @@ function guessGroup(name,muscles){
   if(m==='shoulders' && /lateral/i.test(name)) return 'Deltoides lateral';
   return MUSCLE_TO_GROUP[m] || 'Pecho';
 }
-function sheetExDbSearch(){
-  openSheet(`<div class="between"><div class="h2">Base pública de ejercicios</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
-    <div class="tiny dim" style="margin:4px 0 10px">873 ejercicios de Free Exercise DB (dominio público), con fotos. Buscá uno y se completa el formulario; después ajustá lo que quieras y guardá.</div>
+let exdbMode='form';     // 'form' | 'library' | 'routine'
+let exdbRoutineId=null;  // solo usado en modo 'routine'
+function alreadyImported(sourceId){ return state.exercises.find(x=>x.sourceId===sourceId); }
+function sheetExDbSearch(mode, routineId){
+  exdbMode=mode||'form'; exdbRoutineId=routineId||null;
+  const titles={form:'Base pública de ejercicios',library:'Explorar más ejercicios',routine:'Agregar ejercicio a la rutina'};
+  const subs={
+    form:'873 ejercicios de Free Exercise DB (dominio público), con fotos. Buscá uno y se completa el formulario; después ajustá lo que quieras y guardá.',
+    library:'873 ejercicios con fotos. Tocá uno para sumarlo directo a tu biblioteca — podés elegir varios seguidos.',
+    routine:'Tocá un ejercicio para agregarlo a esta rutina. Si no estaba en tu biblioteca, se suma solo.'
+  };
+  openSheet(`<div class="between"><div class="h2">${titles[exdbMode]}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
+    <div class="tiny dim" style="margin:4px 0 10px">${subs[exdbMode]}</div>
     <input type="text" id="exdbQ" placeholder="Buscar en inglés: bench, curl, squat…" autofocus>
     <div id="exdbOut" class="stack" style="margin-top:10px"><div class="tiny dim">Escribí al menos 3 letras.</div></div>`);
   const inp=$('#exdbQ');
@@ -540,15 +550,48 @@ async function runExdbSearch(q){
   const ql=q.toLowerCase();
   const hits=db.filter(e=>e.name.toLowerCase().includes(ql)).slice(0,20);
   if(!hits.length){ out.innerHTML='<div class="tiny dim">Nada con ese término.</div>'; return; }
-  out.innerHTML=hits.map(e=>`<div class="li" data-act="exdb-pick" data-id="${esc(e.id)}" style="cursor:pointer">
+  out.innerHTML=hits.map(e=>{
+    const got=alreadyImported(e.id);
+    return `<div class="li" data-act="exdb-pick" data-id="${esc(e.id)}" style="cursor:pointer">
     ${e.images[0]?`<img src="${esc(e.images[0])}" loading="lazy" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex:0 0 auto" onerror="this.style.display='none'">`:''}
     <div class="grow"><div class="h3 trunc">${esc(e.name)}</div><div class="tiny dim">${esc((e.muscles||[]).join(', ')||'—')}</div></div>
-  </div>`).join('');
-  out.dataset.hits=JSON.stringify(hits.map(e=>e.id));
+    ${got?'<span class="chip ok">En tu biblioteca</span>':''}
+  </div>`;}).join('');
+}
+function quickImport(e){
+  const existing=alreadyImported(e.id);
+  if(existing) return existing;
+  const created={id:uid(),name:e.name,group:guessGroup(e.name,e.muscles),cues:e.instructions,err:'',tip:'Importado de Free Exercise DB.',images:e.images,custom:false,sourceId:e.id};
+  state.exercises.push(created);
+  return created;
 }
 async function pickExdb(id){
   const db=exdbLoaded()||[]; const e=db.find(x=>x.id===id); if(!e) return;
-  sheetExercise(null, { name:e.name, group:guessGroup(e.name,e.muscles), cues:e.instructions, err:'', tip:'Importado de Free Exercise DB.', images:e.images });
+
+  if(exdbMode==='form'){
+    sheetExercise(null, { name:e.name, group:guessGroup(e.name,e.muscles), cues:e.instructions, err:'', tip:'Importado de Free Exercise DB.', images:e.images });
+    return;
+  }
+  if(exdbMode==='library'){
+    const before=alreadyImported(e.id);
+    const created=quickImport(e);
+    save(true);
+    toast(before?'Ya estaba en tu biblioteca':'Agregado: '+created.name);
+    runExdbSearch($('#exdbQ').value); // refresca la lista para marcar "En tu biblioteca"
+    return;
+  }
+  if(exdbMode==='routine'){
+    const created=quickImport(e);
+    const r=routineById(exdbRoutineId);
+    if(r){
+      r.items.push({id:uid(),exerciseId:created.id,sets:3,repsMin:8,repsMax:12,rir:'1-2',rest:90,ss:''});
+      save(true);
+      toast('Agregado a la rutina: '+created.name);
+    }
+    closeSheet();
+    sheetRoutine(exdbRoutineId);
+    return;
+  }
 }
 
 /* =========================================================
@@ -732,7 +775,10 @@ function sheetRoutine(id){
     <label class="f"><span class="eyebrow">Subtítulo</span><input type="text" data-k="subtitle" value="${esc(r.subtitle||'')}" placeholder="Músculos que cubre"></label>
     <div class="eyebrow" style="margin:16px 0 6px">Ejercicios</div>
     <div id="ritems">${items||'<div class="empty small">Sin ejercicios todavía.</div>'}</div>
-    <button class="btn block" data-act="ri-add" style="margin-top:8px">+ Agregar ejercicio</button>
+    <div class="grid2" style="margin-top:8px">
+      <button class="btn" data-act="ri-add">+ De mi biblioteca</button>
+      <button class="btn" data-act="ri-add-db">🔎 Buscar más (873)</button>
+    </div>
     <button class="btn block primary" data-act="r-save" style="margin-top:14px">Guardar rutina</button>
     </div>`);
 }
@@ -756,6 +802,7 @@ function viewExercises(){
     </div>`).join('')}</div>`).join('');
   return header('Biblioteca','Ejercicios',`<button class="btn sm primary" data-act="x-new">+ Nuevo</button>`)+`<div class="wrap">
     <input type="text" placeholder="Buscar ejercicio o músculo…" value="${esc(state.ui.exq||'')}" data-act="exq" style="margin-top:6px">
+    <button class="btn block ghost" data-act="x-search-db-lib" style="margin-top:10px">🔎 Explorar más ejercicios (873, con fotos)</button>
     ${blocks||'<div class="empty">Nada con ese nombre.</div>'}
     <div style="height:24px"></div></div>`;
 }
@@ -1253,6 +1300,20 @@ document.addEventListener('click',ev=>{
     state.routines=state.routines.filter(x=>x.id!==el.dataset.id); save(true); render(); return; }
   if(a==='ri-add'){ const f=$('#rform'); const items=collectItems(); items.push({id:uid(),exerciseId:state.exercises[0].id,sets:3,repsMin:8,repsMax:12,rir:'1-2',rest:90,ss:''});
     stashRoutine(items); return; }
+  if(a==='ri-add-db'){
+    const f=$('#rform'); let rid=f.dataset.id;
+    if(!rid){
+      const items=collectItems();
+      const name=$('[data-k=name]',f).value.trim()||'Sesión sin nombre';
+      const subtitle=$('[data-k=subtitle]',f).value.trim();
+      rid=uid();
+      state.routines.push({id:rid,name,subtitle,items});
+      save(true);
+    }
+    sheetExDbSearch('routine', rid);
+    return;
+  }
+  if(a==='x-search-db-lib'){ sheetExDbSearch('library'); return; }
   if(a==='ri-del'){ const items=collectItems(); items.splice(+el.dataset.i,1); stashRoutine(items); return; }
   if(a==='ri-up'){ const i=+el.dataset.i; const items=collectItems(); if(i>0){[items[i-1],items[i]]=[items[i],items[i-1]];} stashRoutine(items); return; }
   if(a==='ri-down'){ const i=+el.dataset.i; const items=collectItems(); if(i<items.length-1){[items[i+1],items[i]]=[items[i],items[i+1]];} stashRoutine(items); return; }
