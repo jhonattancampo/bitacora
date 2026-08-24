@@ -520,16 +520,23 @@ function guessGroup(name,muscles){
   if(m==='shoulders' && /lateral/i.test(name)) return 'Deltoides lateral';
   return MUSCLE_TO_GROUP[m] || 'Pecho';
 }
-let exdbMode='form';     // 'form' | 'library' | 'routine'
-let exdbRoutineId=null;  // solo usado en modo 'routine'
+let exdbMode='form';     // 'form' | 'library' | 'routine' | 'replace-item' | 'replace-ex'
+let exdbRoutineId=null;  // 'routine' y 'replace-item'
+let exdbItemId=null;     // solo usado en modo 'replace-item'
+let exdbExId=null;       // solo usado en modo 'replace-ex'
 function alreadyImported(sourceId){ return state.exercises.find(x=>x.sourceId===sourceId); }
-function sheetExDbSearch(mode, routineId){
-  exdbMode=mode||'form'; exdbRoutineId=routineId||null;
-  const titles={form:'Base pública de ejercicios',library:'Explorar más ejercicios',routine:'Agregar ejercicio a la rutina'};
+function sheetExDbSearch(mode, ctx){
+  exdbMode=mode||'form'; exdbRoutineId=null; exdbItemId=null; exdbExId=null;
+  if(exdbMode==='routine') exdbRoutineId=ctx||null;
+  if(exdbMode==='replace-item'){ exdbRoutineId=(ctx&&ctx.routineId)||null; exdbItemId=(ctx&&ctx.itemId)||null; }
+  if(exdbMode==='replace-ex') exdbExId=ctx||null;
+  const titles={form:'Base pública de ejercicios',library:'Explorar más ejercicios',routine:'Agregar ejercicio a la rutina','replace-item':'Reemplazar ejercicio de la rutina','replace-ex':'Reemplazar ejercicio'};
   const subs={
     form:'873 ejercicios de Free Exercise DB (dominio público), con fotos. Buscá uno y se completa el formulario; después ajustá lo que quieras y guardá.',
     library:'873 ejercicios con fotos. Tocá uno para sumarlo directo a tu biblioteca — podés elegir varios seguidos.',
-    routine:'Tocá un ejercicio para agregarlo a esta rutina. Si no estaba en tu biblioteca, se suma solo.'
+    routine:'Tocá un ejercicio para agregarlo a esta rutina. Si no estaba en tu biblioteca, se suma solo.',
+    'replace-item':'Elegí un reemplazo para esta fila puntual. Series, reps, RIR y descanso ya cargados no se tocan.',
+    'replace-ex':'Elegí un reemplazo: se sobrescriben nombre, grupo, pasos y fotos de este ejercicio. Las rutinas que ya lo usan siguen apuntando a él, sin romperse.'
   };
   openSheet(`<div class="between"><div class="h2">${titles[exdbMode]}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
     <div class="tiny dim" style="margin:4px 0 10px">${subs[exdbMode]}</div>
@@ -590,6 +597,30 @@ async function pickExdb(id){
     }
     closeSheet();
     sheetRoutine(exdbRoutineId);
+    return;
+  }
+  if(exdbMode==='replace-item'){
+    const created=quickImport(e);
+    const r=routineById(exdbRoutineId);
+    const it=r&&r.items.find(x=>x.id===exdbItemId);
+    if(it){
+      it.exerciseId=created.id;
+      save(true);
+      toast('Ejercicio reemplazado: '+created.name);
+    }
+    closeSheet();
+    sheetRoutine(exdbRoutineId);
+    return;
+  }
+  if(exdbMode==='replace-ex'){
+    const ex=exById(exdbExId); if(!ex) return;
+    if(!confirm(`Esto reemplaza el nombre, grupo, pasos y fotos actuales por los de "${e.name}". ¿Seguir?`)) return;
+    ex.name=e.name; ex.group=guessGroup(e.name,e.muscles); ex.cues=e.instructions;
+    ex.err=''; ex.tip='Reemplazado desde Free Exercise DB.'; ex.images=e.images;
+    ex.sourceId=e.id; ex.custom=false;
+    save(true);
+    toast('Ejercicio reemplazado: '+ex.name);
+    sheetExercise(exdbExId);
     return;
   }
 }
@@ -756,6 +787,7 @@ function sheetRoutine(id){
       <select class="grow" data-k="exerciseId">${opts(it.exerciseId)}</select>
       <button class="btn icon sm" data-act="ri-up" data-i="${i}">↑</button>
       <button class="btn icon sm" data-act="ri-down" data-i="${i}">↓</button>
+      <button class="btn icon sm" data-act="ri-replace" data-i="${i}" title="Reemplazar ejercicio">⇄</button>
       <button class="btn icon sm danger" data-act="ri-del" data-i="${i}">✕</button>
     </div>
     <div class="grid3" style="margin-top:8px">
@@ -831,7 +863,7 @@ function sheetExercise(id, prefill){
     ${e.images.map((u,i)=>`<img src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" style="height:80px;border-radius:8px;border:1px solid var(--line);flex:0 0 auto;cursor:zoom-in" onerror="this.style.display='none'">`).join('')}
     </div>`:'';
   openSheet(`<div class="between"><div class="h2">${id?'Editar ejercicio':'Nuevo ejercicio'}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
-    ${id?'':'<button class="btn block ghost" data-act="x-search-db" style="margin-top:4px">Buscar en la base pública (con fotos)</button>'}
+    ${id?`<button class="btn block ghost" data-act="x-replace-db" data-id="${esc(e.id)}" style="margin-top:4px">Reemplazar por otro de la base pública</button>`:'<button class="btn block ghost" data-act="x-search-db" style="margin-top:4px">Buscar en la base pública (con fotos)</button>'}
     <div id="xform" data-id="${esc(e.id)}" data-images='${esc(JSON.stringify(e.images||[]))}'>
     ${photos}
     <label class="f"><span class="eyebrow">Nombre</span><input type="text" data-k="name" value="${esc(e.name)}"></label>
@@ -1333,6 +1365,19 @@ document.addEventListener('click',ev=>{
     return;
   }
   if(a==='x-search-db-lib'){ sheetExDbSearch('library'); return; }
+  if(a==='ri-replace'){
+    const f=$('#rform'); let rid=f.dataset.id;
+    const items=collectItems();
+    const itemId=items[+el.dataset.i]&&items[+el.dataset.i].id;
+    if(!itemId) return;
+    const name=$('[data-k=name]',f).value.trim()||'Sesión sin nombre';
+    const subtitle=$('[data-k=subtitle]',f).value.trim();
+    if(rid){ const r=routineById(rid); r.name=name; r.subtitle=subtitle; r.items=items; }
+    else{ rid=uid(); state.routines.push({id:rid,name,subtitle,items}); }
+    save(true);
+    sheetExDbSearch('replace-item', {routineId:rid, itemId});
+    return;
+  }
   if(a==='ri-del'){ const items=collectItems(); items.splice(+el.dataset.i,1); stashRoutine(items); return; }
   if(a==='ri-up'){ const i=+el.dataset.i; const items=collectItems(); if(i>0){[items[i-1],items[i]]=[items[i],items[i-1]];} stashRoutine(items); return; }
   if(a==='ri-down'){ const i=+el.dataset.i; const items=collectItems(); if(i<items.length-1){[items[i+1],items[i]]=[items[i],items[i+1]];} stashRoutine(items); return; }
@@ -1349,6 +1394,7 @@ document.addEventListener('click',ev=>{
   /* ejercicios */
   if(a==='x-new'){ sheetExercise(null); return; }
   if(a==='x-search-db'){ sheetExDbSearch(); return; }
+  if(a==='x-replace-db'){ sheetExDbSearch('replace-ex', el.dataset.id); return; }
   if(a==='exdb-pick'){ pickExdb(el.dataset.id); return; }
   if(a==='x-edit'){ sheetExercise(el.dataset.id); return; }
   if(a==='x-save'){
