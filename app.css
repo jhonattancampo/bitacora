@@ -131,3 +131,9 @@ table.t td.n{text-align:right}
 .empty{text-align:center;padding:34px 16px;color:var(--dim)}
 .ssgroup{border-left:2px solid var(--sig);padding-left:10px;margin-left:-1px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+
+/* ---------- bloqueo con PIN ---------- */
+#lock{position:fixed;inset:0;z-index:200;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px}
+#lock.on{display:flex}
+.lockcard{width:100%;max-width:320px}

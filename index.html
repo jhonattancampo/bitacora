@@ -41,6 +41,15 @@
 <div id="scrim" data-act="closesheet"></div>
 <div id="sheet"><div class="handle"></div><div class="sheetin" id="sheetin"></div></div>
 <div id="toast"></div>
+<div id="lock">
+  <div class="lockcard">
+    <div class="mark" style="margin:0 auto 14px"></div>
+    <div class="h2" id="lockTitle" style="text-align:center">Ingresá tu PIN</div>
+    <div id="lockMsg" class="tiny dim" style="text-align:center;margin-top:4px;min-height:16px"></div>
+    <input type="password" id="lockInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" style="text-align:center;letter-spacing:.4em;font-size:22px;margin-top:16px">
+    <button class="btn block primary" id="lockGo" style="margin-top:12px">Continuar</button>
+  </div>
+</div>
 <script src="./config.js"></script>
 <script src="./sync.js"></script>
 <script src="./app.js"></script>
