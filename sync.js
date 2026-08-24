@@ -210,6 +210,11 @@ const Sync = (function () {
     const f = await boot();
     await f.m.auth.signInWithEmailAndPassword(f.auth, email.trim(), pass);
   }
+  async function signInGoogle() {
+    const f = await boot();
+    const provider = new f.m.auth.GoogleAuthProvider();
+    await f.m.auth.signInWithPopup(f.auth, provider);
+  }
   async function signUp(email, pass) {
     const f = await boot();
     await f.m.auth.createUserWithEmailAndPassword(f.auth, email.trim(), pass);
@@ -231,6 +236,6 @@ const Sync = (function () {
   // punto de entrada para pruebas automatizadas (no se usa en producción)
   function _inject(backend, user) { fb = backend; S.user = user; }
 
-  return { init, on, run, schedule, signIn, signUp, signOut, reset, configured, state: S, _inject };
+  return { init, on, run, schedule, signIn, signUp, signOut, reset, signInGoogle, configured, state: S, _inject };
 })();
 window.Sync = Sync;
