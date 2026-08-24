@@ -468,7 +468,7 @@ function lockSubmit(){
   const val=$('#lockInput').value.trim();
   if(val.length<4){ $('#lockMsg').textContent='Mínimo 4 dígitos.'; return; }
   if(lockMode==='unlock'){
-    if(pinCheck(val)){ hideLock(); }
+    if(pinCheck(val)){ hideLock(); maybeStartTour(); }
     else{ lockAttempts++; $('#lockMsg').textContent='PIN incorrecto.'; $('#lockInput').value=''; }
     return;
   }
@@ -809,8 +809,8 @@ function viewExercises(){
 function sheetGuide(id){
   const e=exById(id); if(!e) return;
   const hist=exerciseHistory(id).slice(0,5);
-  const photos=(e.images&&e.images.length)?`<div class="row" style="gap:8px;margin-top:12px;overflow-x:auto">
-    ${e.images.map(u=>`<img src="${esc(u)}" loading="lazy" style="height:150px;border-radius:10px;border:1px solid var(--line);flex:0 0 auto" onerror="this.style.display='none'">`).join('')}
+  const photos=(e.images&&e.images.length)?`<div class="row" style="gap:8px;margin-top:12px;overflow-x:auto" data-photos='${esc(JSON.stringify(e.images))}'>
+    ${e.images.map((u,i)=>`<img src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" style="height:150px;border-radius:10px;border:1px solid var(--line);flex:0 0 auto;cursor:zoom-in" onerror="this.style.display='none'">`).join('')}
     </div><div class="tiny dim" style="margin-top:5px">Fotos: Free Exercise DB (dominio público)</div>`:'';
   openSheet(`<div class="between"><div class="grow"><div class="eyebrow">${esc(e.group)}</div><div class="h2">${esc(e.name)}</div></div>
     <button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
@@ -827,8 +827,8 @@ function sheetGuide(id){
 function sheetExercise(id, prefill){
   const base = id?exById(id):{id:'',name:'',group:'Pecho',cues:[],err:'',tip:'',images:[]};
   const e = prefill ? Object.assign({}, base, prefill, {id: base.id}) : base;
-  const photos=(e.images&&e.images.length)?`<div class="row" style="gap:8px;margin:8px 0;overflow-x:auto">
-    ${e.images.map(u=>`<img src="${esc(u)}" loading="lazy" style="height:80px;border-radius:8px;border:1px solid var(--line);flex:0 0 auto" onerror="this.style.display='none'">`).join('')}
+  const photos=(e.images&&e.images.length)?`<div class="row" style="gap:8px;margin:8px 0;overflow-x:auto" data-photos='${esc(JSON.stringify(e.images))}'>
+    ${e.images.map((u,i)=>`<img src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" style="height:80px;border-radius:8px;border:1px solid var(--line);flex:0 0 auto;cursor:zoom-in" onerror="this.style.display='none'">`).join('')}
     </div>`:'';
   openSheet(`<div class="between"><div class="h2">${id?'Editar ejercicio':'Nuevo ejercicio'}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
     ${id?'':'<button class="btn block ghost" data-act="x-search-db" style="margin-top:4px">Buscar en la base pública (con fotos)</button>'}
@@ -843,6 +843,24 @@ function sheetExercise(id, prefill){
     ${id?`<button class="btn block danger ghost" data-act="x-del" data-id="${e.id}" style="margin-top:8px">Borrar ejercicio</button>`:''}
     </div>`);
 }
+
+/* ---------------- VISOR DE FOTOS ---------------- */
+let lbImgs=[], lbIdx=0;
+function openLightbox(imgs, idx){
+  if(tourActive || !imgs || !imgs.length) return;
+  lbImgs=imgs; lbIdx=clamp(idx||0,0,imgs.length-1);
+  renderLightbox();
+  $('#lightbox').classList.add('on');
+}
+function closeLightbox(){ $('#lightbox').classList.remove('on'); }
+function renderLightbox(){
+  $('#lbImgs').innerHTML=`<img src="${esc(lbImgs[lbIdx])}" alt="">`;
+  const many=lbImgs.length>1;
+  $('#lbPrev').style.display=many?'flex':'none';
+  $('#lbNext').style.display=many?'flex':'none';
+}
+$('#lightbox').addEventListener('click', ev=>{ if(ev.target.id==='lightbox') closeLightbox(); });
+document.addEventListener('keydown', ev=>{ if(ev.key==='Escape' && $('#lightbox').classList.contains('on')) closeLightbox(); });
 
 /* ---------------- PROGRESO ---------------- */
 function exerciseHistory(exId){
@@ -1062,7 +1080,8 @@ function viewSettings(){
         <div><div class="mono" style="font-size:22px;font-weight:800">${state.exercises.length}</div><div class="tiny dim">ejercicios</div></div>
         <div><div class="mono" style="font-size:22px;font-weight:800">${state.routines.length}</div><div class="tiny dim">rutinas</div></div>
       </div>
-      <button class="btn block ghost" data-act="update" style="margin-top:14px">Buscar actualización de la app</button>
+      <button class="btn block ghost" data-act="tutorial" style="margin-top:14px">Ver el tutorial</button>
+      <button class="btn block ghost" data-act="update" style="margin-top:8px">Buscar actualización de la app</button>
       <button class="btn block danger ghost" data-act="reset" style="margin-top:8px">Restaurar el plan original</button>
       <button class="btn block danger ghost" data-act="wipe" style="margin-top:8px">Borrar todo</button>
     </div>
@@ -1429,6 +1448,26 @@ document.addEventListener('click',ev=>{
     const seed=seedState(); state.exercises=seed.exercises; state.routines=seed.routines; save(true); render(); toast('Plan restaurado'); return; }
   if(a==='wipe'){ if(!confirm('Borra TODO: historial, rutinas, pesadas. ¿Seguro?')) return;
     state=seedState(); save(true); render(); toast('Todo borrado'); return; }
+
+  /* visor de fotos */
+  if(a==='photo'){
+    if(tourActive) return;
+    const group=el.closest('[data-photos]'); if(!group) return;
+    let imgs=[]; try{ imgs=JSON.parse(group.dataset.photos||'[]'); }catch(e){}
+    openLightbox(imgs, +el.dataset.idx||0); return;
+  }
+  if(a==='lightbox-close'){ closeLightbox(); return; }
+  if(a==='lightbox-prev'){ lbIdx=(lbIdx-1+lbImgs.length)%lbImgs.length; renderLightbox(); return; }
+  if(a==='lightbox-next'){ lbIdx=(lbIdx+1)%lbImgs.length; renderLightbox(); return; }
+
+  /* tutorial guiado */
+  if(a==='tutorial'){ startTour(); return; }
+  if(a==='tour-skip'){ endTour(); return; }
+  if(a==='tour-prev'){ tourGoTo(tourIdx-1,-1); return; }
+  if(a==='tour-next'){
+    if(tourIdx>=TOUR_STEPS.length-1){ endTour(); view='train'; render(); return; }
+    tourGoTo(tourIdx+1,1); return;
+  }
 });
 
 function collectItems(){
@@ -1491,12 +1530,156 @@ window.App={
   render, toast
 };
 
+/* =========================================================
+   TUTORIAL GUIADO
+   ========================================================= */
+const TOUR_SEEN_KEY='bitacora_tutorial_seen';
+const TOUR_STEPS=[
+  { view:null, selector:null,
+    title:'Bienvenido a Bitácora',
+    text:'Registrá tus entrenamientos, seguí tu progreso y no perdés nada aunque cambies de teléfono. Este recorrido dura menos de un minuto y podés repetirlo cuando quieras desde Ajustes.' },
+  { view:null, selector:'nav',
+    title:'Las 5 pestañas',
+    text:'Entrenar arranca tu sesión de hoy. Rutinas son tus plantillas. Ejercicios es tu biblioteca con fotos. Progreso muestra tus gráficos. Ajustes tiene cuenta, PIN, tema y backup.' },
+  { view:'train', selector:'.card[data-act="start"]',
+    title:'Elegí tu sesión',
+    text:'Tocá una rutina para arrancar. Bitácora carga automáticamente los ejercicios, series y objetivos que definiste para ese día.' },
+  { view:'train', selector:'.setrow',
+    title:'Anotá cada serie',
+    text:'Cargá peso, reps y RIR, y tocá ✓ para marcarla como hecha. Lo que ves en gris es lo que hiciste la vez pasada, para que sepas contra qué superarte.' },
+  { view:'train', selector:'#timer',
+    title:'Descanso automático',
+    text:'Al marcar una serie, el cronómetro de descanso arranca solo acá abajo. Podés sumar o restar 15 segundos, o saltarlo con Listo.' },
+  { view:'train', selector:'.exnum.ss',
+    title:'Superseries',
+    text:'Si ves una letra en vez de un número, esos ejercicios van encadenados sin descanso entre uno y otro: es una superserie.' },
+  { view:'routines', selector:'.card',
+    title:'Tus rutinas',
+    text:'Editá los ejercicios, series y objetivos de cada rutina, o duplicala para armar una variante sin tocar la original.' },
+  { view:'routines',
+    before:()=>{ const r=state.routines[0]; sheetRoutine(r?r.id:null); },
+    selector:()=>{ const b=document.querySelector('[data-act="ri-add"]'); return b?b.parentElement:null; },
+    title:'Sumar ejercicios',
+    text:'Desde una rutina agregás ejercicios de tu biblioteca, o buscás entre los 873 de la base pública con fotos incluidas.' },
+  { view:'exercises', selector:'.li [data-act="guide"]',
+    title:'Guía de ejecución',
+    text:'Tocá cualquier ejercicio para ver fotos, los pasos de ejecución y tu historial con ese movimiento.' },
+  { view:'exercises', selector:'[data-act="x-search-db-lib"]',
+    title:'873 ejercicios más',
+    text:'Si no encontrás el ejercicio que buscás en tu biblioteca, explorá la base pública: trae fotos de la posición inicial y final.' },
+  { view:'progress',
+    selector:()=>{ const b=document.querySelector('[data-act="ptab"]'); return b?b.parentElement:null; },
+    title:'Cuatro formas de ver tu progreso',
+    text:'Ejercicio muestra tu 1RM estimado, Volumen tus series por grupo muscular, Historial tus sesiones pasadas y Peso corporal tu evolución de peso.' },
+  { view:'settings', selector:null,
+    title:'Tu cuenta, tus reglas',
+    text:'Desde Ajustes sincronizás tus datos, activás un PIN para bloquear la app, elegís tema y color, y hacés una copia de seguridad de todo.' },
+  { view:null, selector:null, cta:'Empezar a entrenar',
+    title:'Listo para arrancar',
+    text:'Eso es todo. Podés repetir este recorrido cuando quieras desde Ajustes → Ver el tutorial.' },
+];
+let tourActive=false, tourIdx=0;
+function maybeStartTour(){
+  let seen=false; try{ seen=!!localStorage.getItem(TOUR_SEEN_KEY); }catch(e){}
+  if(seen) return;
+  startTour();
+}
+function startTour(){
+  if($('#lock').classList.contains('on')) return;
+  tourActive=true;
+  $('#tour').classList.add('on');
+  window.addEventListener('resize', onTourResize);
+  window.addEventListener('orientationchange', onTourResize);
+  tourGoTo(0,1);
+}
+function endTour(){
+  tourActive=false;
+  $('#tour').classList.remove('on');
+  window.removeEventListener('resize', onTourResize);
+  window.removeEventListener('orientationchange', onTourResize);
+  try{ localStorage.setItem(TOUR_SEEN_KEY,'1'); }catch(e){}
+}
+function tourResolveTarget(step){
+  try{ return typeof step.selector==='function' ? step.selector() : document.querySelector(step.selector); }
+  catch(e){ return null; }
+}
+function tourVisible(el){
+  if(!el || !el.isConnected) return false;
+  const r=el.getBoundingClientRect();
+  return r.width>0 && r.height>0;
+}
+function tourGoTo(idx, dir){
+  if(idx<0) return;
+  if(idx>=TOUR_STEPS.length){ endTour(); return; }
+  const step=TOUR_STEPS[idx];
+  if(step.view && step.view!==view){
+    const btn=document.querySelector('.nb[data-v="'+step.view+'"]');
+    if(btn) btn.click(); else closeSheet();
+  } else closeSheet();
+  if(step.before) step.before();
+  const target = step.selector ? tourResolveTarget(step) : null;
+  if(target && target.isConnected) target.scrollIntoView({block:'center', inline:'center'});
+  if(step.selector && !tourVisible(target)){ tourGoTo(idx+dir, dir); return; }
+  tourIdx=idx;
+  showTourCard(step, target);
+}
+function showTourCard(step, target){
+  $('#tourProgress').textContent=(tourIdx+1)+' / '+TOUR_STEPS.length;
+  $('#tourTitle').textContent=step.title;
+  $('#tourText').textContent=step.text;
+  const isLast=tourIdx===TOUR_STEPS.length-1;
+  const nextBtn=$('[data-act="tour-next"]');
+  nextBtn.textContent = isLast ? (step.cta||'Entendido') : 'Siguiente';
+  $('[data-act="tour-prev"]').disabled = tourIdx===0;
+  tourLayout(target?target.getBoundingClientRect():null);
+  nextBtn.focus();
+}
+function onTourResize(){
+  if(!tourActive) return;
+  const step=TOUR_STEPS[tourIdx];
+  const target = step.selector ? tourResolveTarget(step) : null;
+  tourLayout(target?target.getBoundingClientRect():null);
+}
+function tourLayout(rect){
+  const vw=innerWidth, vh=innerHeight, pad=8, margin=12;
+  const top=$('#tour .tourmask.top'), bottom=$('#tour .tourmask.bottom'), left=$('#tour .tourmask.left'), right=$('#tour .tourmask.right');
+  const ring=$('#tourring'), card=$('#tourcard');
+  let box=null;
+  if(rect && rect.width>0 && rect.height>0){
+    const x=Math.max(rect.left-pad,0), y=Math.max(rect.top-pad,0);
+    const w=Math.min(rect.width+pad*2, vw-x), h=Math.min(rect.height+pad*2, vh-y);
+    box={x,y,w,h};
+  }
+  if(!box){
+    top.style.cssText='left:0;top:0;width:100%;height:100%';
+    [bottom,left,right].forEach(m=>m.style.cssText='width:0;height:0');
+    ring.style.display='none';
+    card.classList.add('floating');
+    card.style.top=''; card.style.left='';
+    return;
+  }
+  top.style.cssText=`left:0;top:0;width:100%;height:${box.y}px`;
+  bottom.style.cssText=`left:0;top:${box.y+box.h}px;width:100%;height:${Math.max(vh-box.y-box.h,0)}px`;
+  left.style.cssText=`left:0;top:${box.y}px;width:${box.x}px;height:${box.h}px`;
+  right.style.cssText=`left:${box.x+box.w}px;top:${box.y}px;width:${Math.max(vw-box.x-box.w,0)}px;height:${box.h}px`;
+  ring.style.cssText=`display:block;left:${box.x}px;top:${box.y}px;width:${box.w}px;height:${box.h}px`;
+  card.classList.remove('floating');
+  const cr=card.getBoundingClientRect();
+  const spaceBelow=vh-(box.y+box.h), spaceAbove=box.y;
+  let cardTop = (spaceBelow>=cr.height+margin || spaceBelow>=spaceAbove) ? box.y+box.h+margin : box.y-cr.height-margin;
+  cardTop=Math.max(margin, Math.min(cardTop, vh-cr.height-margin));
+  let cardLeft = box.x+box.w/2-cr.width/2;
+  cardLeft=Math.max(margin, Math.min(cardLeft, vw-cr.width-margin));
+  card.style.top=cardTop+'px';
+  card.style.left=cardLeft+'px';
+}
+
 /* ---------- arranque ---------- */
 applyTheme();
 restoreTimer();
 if(state.active) keepAwake(true);
 render();
-if(pinIsSet()) showLock('unlock');
+if(pinIsSet()) showLock('unlock'); else maybeStartTour();
 if(window.Sync){
   Sync.on(()=>{ if(view==='settings') render(); });
   Sync.init();

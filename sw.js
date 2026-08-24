@@ -4,7 +4,7 @@
    Subí el número de VERSION cada vez que cambies un archivo:
    así el teléfono se entera de que hay una versión nueva.
    ========================================================= */
-const VERSION = "bitacora-v1";
+const VERSION = "bitacora-v2";
 const SHELL = [
   "./",
   "./index.html",

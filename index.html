@@ -41,6 +41,33 @@
 <div id="scrim" data-act="closesheet"></div>
 <div id="sheet"><div class="handle"></div><div class="sheetin" id="sheetin"></div></div>
 <div id="toast"></div>
+
+<div id="lightbox">
+  <button class="btn icon sm" id="lbClose" data-act="lightbox-close" aria-label="Cerrar">✕</button>
+  <button class="btn icon" id="lbPrev" data-act="lightbox-prev" aria-label="Foto anterior">‹</button>
+  <div id="lbImgs"></div>
+  <button class="btn icon" id="lbNext" data-act="lightbox-next" aria-label="Foto siguiente">›</button>
+</div>
+
+<div id="tour">
+  <div id="tourglass"></div>
+  <div class="tourmask top"></div>
+  <div class="tourmask bottom"></div>
+  <div class="tourmask left"></div>
+  <div class="tourmask right"></div>
+  <div id="tourring"></div>
+  <div id="tourcard" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+    <div class="tiny dim" id="tourProgress"></div>
+    <div class="h2" id="tourTitle"></div>
+    <div class="small" id="tourText" style="margin-top:6px"></div>
+    <div class="row" style="margin-top:16px;gap:8px;flex-wrap:wrap">
+      <button class="btn sm ghost" data-act="tour-skip">Saltar tutorial</button>
+      <div class="grow"></div>
+      <button class="btn sm" data-act="tour-prev">Atrás</button>
+      <button class="btn sm primary" data-act="tour-next">Siguiente</button>
+    </div>
+  </div>
+</div>
 <div id="lock">
   <div class="lockcard">
     <div class="mark" style="margin:0 auto 14px"></div>

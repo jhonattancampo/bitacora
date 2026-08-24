@@ -2,6 +2,8 @@
 
 Guía rápida de las cinco pestañas de abajo. Todo lo que hacés se guarda al instante en el teléfono, tengas o no señal.
 
+La primera vez que abrís la app aparece un tutorial guiado que recorre las pantallas principales. Si te lo saltaste o querés repasarlo, volvé a verlo desde **Ajustes → Ver el tutorial**.
+
 ---
 
 ## 🏋️ Entrenar
