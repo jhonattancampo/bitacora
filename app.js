@@ -37,6 +37,7 @@ function save(now){
 }
 
 /* ---------- grupos musculares ---------- */
+const ACCENT_HEX={mostaza:'#FFCC1D',verde:'#3ADB7A',fucsia:'#FF4FA6',violeta:'#9B6BFF',celeste:'#33C4F2',coral:'#FF7A59'};
 const GROUPS=['Pecho','Espalda','Deltoides lateral','Deltoides ant/post','Bíceps','Tríceps','Antebrazo','Cuádriceps','Isquios/Glúteo','Gemelos','Aductores','Core'];
 const RANGES={'Pecho':[10,20],'Espalda':[10,20],'Deltoides lateral':[8,16],'Deltoides ant/post':[4,10],'Bíceps':[8,16],'Tríceps':[8,16],'Antebrazo':[2,10],'Cuádriceps':[10,18],'Isquios/Glúteo':[10,18],'Gemelos':[6,12],'Aductores':[2,10],'Core':[6,12]};
 
@@ -317,7 +318,7 @@ function seedState(){return {
     return o;
   }), routines:SEED_ROUTINES(),
   sessions:[], bw:[], active:null,
-  settings:{rest:90,sound:true,vibrate:true,bar:20,autoTimer:true,wake:true},
+  settings:{rest:90,sound:true,vibrate:true,bar:20,autoTimer:true,wake:true,theme:'dark',accent:'mostaza'},
   ui:{progressEx:'press-inc'}
 };}
 
@@ -329,7 +330,7 @@ let state = readStore() || seedState();
     if(!e.images) e.images = (EX_IMAGES[e.id] && !e.custom) ? EX_IMAGES[e.id].images.slice() : [];
   });
   state.bw=state.bw||[]; state.ui=state.ui||{}; 
-  state.settings=Object.assign({rest:90,sound:true,vibrate:true,bar:20,autoTimer:true,wake:true},state.settings||{});
+  state.settings=Object.assign({rest:90,sound:true,vibrate:true,bar:20,autoTimer:true,wake:true,theme:'dark',accent:'mostaza'},state.settings||{});
 })();
 
 let view = state.active ? 'train' : 'train';
@@ -553,7 +554,16 @@ async function pickExdb(id){
 /* =========================================================
    VISTAS
    ========================================================= */
+
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', state.settings.theme||'dark');
+  document.documentElement.setAttribute('data-accent', state.settings.accent||'mostaza');
+  const meta=document.querySelector('meta[name=theme-color]');
+  if(meta) meta.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||'#0E1316');
+}
+
 function render(){
+  applyTheme();
   $$('.nb').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   const el=$('#app');
   const map={train:viewTrain,routines:viewRoutines,exercises:viewExercises,progress:viewProgress,settings:viewSettings};
@@ -941,8 +951,20 @@ function progBW(){
 /* ---------------- AJUSTES ---------------- */
 function viewSettings(){
   const s=state.settings;
+  const ACCENTS=[['mostaza','Mostaza'],['verde','Verde'],['fucsia','Fucsia'],['violeta','Violeta'],['celeste','Celeste'],['coral','Coral']];
   return header('Tu copia, tus datos','Ajustes')+`<div class="wrap">
     ${accountCard()}
+    <div class="card">
+      <div class="eyebrow">Apariencia</div>
+      <div class="row" style="gap:8px;margin:10px 0 14px">
+        <button class="btn ${s.theme!=='light'?'primary':''}" style="flex:1" data-act="theme" data-v="dark">Oscuro</button>
+        <button class="btn ${s.theme==='light'?'primary':''}" style="flex:1" data-act="theme" data-v="light">Claro</button>
+      </div>
+      <div class="eyebrow" style="margin-bottom:8px">Color</div>
+      <div class="row" style="gap:10px;flex-wrap:wrap">
+        ${ACCENTS.map(([v,label])=>`<button data-act="accent" data-v="${v}" title="${label}" style="width:38px;height:38px;border-radius:99px;border:2px solid ${s.accent===v?'var(--tx)':'transparent'};background:${ACCENT_HEX[v]};padding:0;flex:0 0 auto"></button>`).join('')}
+      </div>
+    </div>
     <div class="card">
       <div class="eyebrow">Entrenamiento</div>
       <div class="switch"><div><div class="h3">Arrancar el descanso solo</div><div class="tiny dim">Al marcar una serie como hecha</div></div>
@@ -1289,6 +1311,8 @@ document.addEventListener('click',ev=>{
   if(a==='bw-del'){ state.bw=state.bw.filter(x=>x.date!==el.dataset.d); save(true); render(); return; }
 
   /* ajustes */
+  if(a==='theme'){ state.settings.theme=el.dataset.v; save(true); applyTheme(); render(); return; }
+  if(a==='accent'){ state.settings.accent=el.dataset.v; save(true); applyTheme(); render(); return; }
   if(a==='tog'){ const k=el.dataset.k; state.settings[k]=!state.settings[k]; save(true); render(); return; }
   if(a==='plate'){
     const total=num($('#plateW').value), bar=num($('#plateBar').value)||20;
@@ -1378,7 +1402,7 @@ document.addEventListener('change',ev=>{
     fr.onload=()=>{ try{ const o=JSON.parse(fr.result);
       if(!o.exercises||!o.routines) throw 0;
       if(!confirm('Reemplaza los datos actuales por los del archivo. ¿Seguir?')) return;
-      state=o; state.settings=Object.assign({rest:90,sound:true,vibrate:true,bar:20,autoTimer:true,wake:true},state.settings||{});
+      state=o; state.settings=Object.assign({rest:90,sound:true,vibrate:true,bar:20,autoTimer:true,wake:true,theme:'dark',accent:'mostaza'},state.settings||{});
       state.ui=state.ui||{}; save(true); render(); toast('Datos importados');
     }catch(e){ toast('El archivo no es una copia válida'); } };
     fr.readAsText(el.files[0]); el.value='';
@@ -1407,6 +1431,7 @@ window.App={
 };
 
 /* ---------- arranque ---------- */
+applyTheme();
 restoreTimer();
 if(state.active) keepAwake(true);
 render();
