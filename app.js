@@ -886,7 +886,7 @@ function openLightbox(imgs, idx){
 }
 function closeLightbox(){ $('#lightbox').classList.remove('on'); }
 function renderLightbox(){
-  $('#lbImgs').innerHTML=`<img src="${esc(lbImgs[lbIdx])}" alt="">`;
+  $('#lbImgs').innerHTML=`<img src="${esc(lbImgs[lbIdx])}" alt="" onerror="this.style.display='none'">`;
   const many=lbImgs.length>1;
   $('#lbPrev').style.display=many?'flex':'none';
   $('#lbNext').style.display=many?'flex':'none';
@@ -1497,7 +1497,6 @@ document.addEventListener('click',ev=>{
 
   /* visor de fotos */
   if(a==='photo'){
-    if(tourActive) return;
     const group=el.closest('[data-photos]'); if(!group) return;
     let imgs=[]; try{ imgs=JSON.parse(group.dataset.photos||'[]'); }catch(e){}
     openLightbox(imgs, +el.dataset.idx||0); return;
@@ -1626,6 +1625,7 @@ const TOUR_STEPS=[
 ];
 let tourActive=false, tourIdx=0;
 function maybeStartTour(){
+  if(tourActive) return;
   let seen=false; try{ seen=!!localStorage.getItem(TOUR_SEEN_KEY); }catch(e){}
   if(seen) return;
   startTour();
@@ -1664,8 +1664,8 @@ function tourGoTo(idx, dir){
   } else closeSheet();
   if(step.before) step.before();
   const target = step.selector ? tourResolveTarget(step) : null;
-  if(target && target.isConnected) target.scrollIntoView({block:'center', inline:'center'});
   if(step.selector && !tourVisible(target)){ tourGoTo(idx+dir, dir); return; }
+  if(target) target.scrollIntoView({block:'center', inline:'center'});
   tourIdx=idx;
   showTourCard(step, target);
 }
@@ -1691,7 +1691,7 @@ function tourLayout(rect){
   const top=$('#tour .tourmask.top'), bottom=$('#tour .tourmask.bottom'), left=$('#tour .tourmask.left'), right=$('#tour .tourmask.right');
   const ring=$('#tourring'), card=$('#tourcard');
   let box=null;
-  if(rect && rect.width>0 && rect.height>0){
+  if(rect && rect.width>0 && rect.height>0 && rect.bottom>0 && rect.right>0 && rect.top<vh && rect.left<vw){
     const x=Math.max(rect.left-pad,0), y=Math.max(rect.top-pad,0);
     const w=Math.min(rect.width+pad*2, vw-x), h=Math.min(rect.height+pad*2, vh-y);
     box={x,y,w,h};
@@ -1704,13 +1704,13 @@ function tourLayout(rect){
     card.style.top=''; card.style.left='';
     return;
   }
+  card.classList.remove('floating');
+  const cr=card.getBoundingClientRect();
   top.style.cssText=`left:0;top:0;width:100%;height:${box.y}px`;
   bottom.style.cssText=`left:0;top:${box.y+box.h}px;width:100%;height:${Math.max(vh-box.y-box.h,0)}px`;
   left.style.cssText=`left:0;top:${box.y}px;width:${box.x}px;height:${box.h}px`;
   right.style.cssText=`left:${box.x+box.w}px;top:${box.y}px;width:${Math.max(vw-box.x-box.w,0)}px;height:${box.h}px`;
   ring.style.cssText=`display:block;left:${box.x}px;top:${box.y}px;width:${box.w}px;height:${box.h}px`;
-  card.classList.remove('floating');
-  const cr=card.getBoundingClientRect();
   const spaceBelow=vh-(box.y+box.h), spaceAbove=box.y;
   let cardTop = (spaceBelow>=cr.height+margin || spaceBelow>=spaceAbove) ? box.y+box.h+margin : box.y-cr.height-margin;
   cardTop=Math.max(margin, Math.min(cardTop, vh-cr.height-margin));
