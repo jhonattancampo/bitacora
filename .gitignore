@@ -18,3 +18,4 @@ npm-debug.log*
 # Copias de seguridad exportadas desde la app (son datos personales)
 bitacora-*.json
 bitacora-*.csv
+.atl/
