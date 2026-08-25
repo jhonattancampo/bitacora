@@ -389,9 +389,13 @@ function openSheet(html){ $('#sheetin').innerHTML=html; $('#sheet').classList.ad
 function closeSheet(){ $('#sheet').classList.remove('on'); $('#scrim').classList.remove('on'); }
 
 /* ---------- temporizador ---------- */
-const T={end:0,total:0,int:null,label:'',beeped:false};
+const REST_WARN_AT=3;   // segundos antes del final para el aviso de "ya viene"
+const REST_WARN_MIN=8;  // descansos más cortos que esto no avisan: serían tres sonidos pegados
+const T={end:0,total:0,int:null,label:'',beeped:false,warned:false};
 function startTimer(sec,label){
   T.total=sec; T.end=Date.now()+sec*1000; T.label=label||'Descanso'; T.beeped=false;
+  T.warned = sec<=REST_WARN_MIN;
+  beepStart();
   $('#timer').classList.add('on'); tick();
   clearInterval(T.int); T.int=setInterval(tick,200);
   try{ localStorage.setItem('bitacora_timer',JSON.stringify({end:T.end,total:T.total,label:T.label})); }catch(e){}
@@ -402,6 +406,7 @@ function restoreTimer(){
   try{ const o=JSON.parse(localStorage.getItem('bitacora_timer')||'null'); if(!o) return;
     const left=(o.end-Date.now())/1000; if(left<-90){ localStorage.removeItem('bitacora_timer'); return; }
     T.total=o.total; T.end=o.end; T.label=o.label; T.beeped=left<=0;
+    T.warned = left<=REST_WARN_AT || o.total<=REST_WARN_MIN;
     $('#timer').classList.add('on'); tick(); clearInterval(T.int); T.int=setInterval(tick,200);
   }catch(e){}
 }
@@ -423,26 +428,37 @@ function tick(){
   $('#tlbl').textContent=T.label;
   const pct=left<=0?100:clamp(100-(left/T.total)*100,0,100);
   const f=$('#tfill'); f.style.width=pct+'%'; f.classList.toggle('done',left<=0);
+  if(left>0 && left<=REST_WARN_AT && !T.warned){ T.warned=true; beepWarn(); }
   if(left<=0 && !T.beeped){ T.beeped=true; beep(); }
   if(left<-120) stopTimer();
 }
-function beep(){
-  if(state.settings.vibrate && navigator.vibrate) try{navigator.vibrate([120,80,120,80,220]);}catch(e){}
+/* Los tres avisos del descanso tienen que distinguirse sin mirar la pantalla:
+   arranca  = un tono grave y corto
+   ya viene = dos tonos agudos rápidos
+   terminó  = tres tonos ascendentes */
+function tones(seq,vib){
+  if(state.settings.vibrate && navigator.vibrate && vib) try{navigator.vibrate(vib);}catch(e){}
   if(!state.settings.sound) return;
   try{
     const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
     const ac=new AC();
-    [0,0.22,0.44].forEach((t,i)=>{
+    let last=0;
+    seq.forEach(n=>{
       const o=ac.createOscillator(),g=ac.createGain();
-      o.type='sine'; o.frequency.value=i===2?1046:784;
-      g.gain.setValueAtTime(.0001,ac.currentTime+t);
-      g.gain.exponentialRampToValueAtTime(.32,ac.currentTime+t+.02);
-      g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+t+.18);
-      o.connect(g); g.connect(ac.destination); o.start(ac.currentTime+t); o.stop(ac.currentTime+t+.2);
+      o.type='sine'; o.frequency.value=n.f;
+      const t0=ac.currentTime+n.t;
+      g.gain.setValueAtTime(.0001,t0);
+      g.gain.exponentialRampToValueAtTime(n.g||.3,t0+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,t0+n.d);
+      o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0+n.d+.02);
+      last=Math.max(last,n.t+n.d);
     });
-    setTimeout(()=>{try{ac.close()}catch(e){}},1200);
+    setTimeout(()=>{try{ac.close()}catch(e){}},(last+1)*1000);
   }catch(e){}
 }
+function beepStart(){ tones([{f:392,t:0,d:.16,g:.24}],[70]); }
+function beepWarn(){ tones([{f:1175,t:0,d:.08,g:.26},{f:1175,t:.13,d:.08,g:.26}],[60,70,60]); }
+function beep(){ tones([{f:784,t:0,d:.18},{f:784,t:.22,d:.18},{f:1046,t:.44,d:.2,g:.32}],[120,80,120,80,220]); }
 
 
 
@@ -1169,7 +1185,7 @@ function viewSettings(){
       <div class="eyebrow">Entrenamiento</div>
       <div class="switch"><div><div class="h3">Arrancar el descanso solo</div><div class="tiny dim">Al marcar una serie como hecha</div></div>
         <div class="tog ${s.autoTimer?'on':''}" data-act="tog" data-k="autoTimer"><i></i></div></div>
-      <div class="switch"><div><div class="h3">Sonido al terminar</div><div class="tiny dim">Tres pitidos</div></div>
+      <div class="switch"><div><div class="h3">Sonidos del descanso</div><div class="tiny dim">Al arrancar, cuando está por terminar y al terminar</div></div>
         <div class="tog ${s.sound?'on':''}" data-act="tog" data-k="sound"><i></i></div></div>
       <div class="switch"><div><div class="h3">Vibración</div><div class="tiny dim">Si el dispositivo la soporta</div></div>
         <div class="tog ${s.vibrate?'on':''}" data-act="tog" data-k="vibrate"><i></i></div></div>
