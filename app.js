@@ -842,10 +842,11 @@ function entryCard(en,idx,s){
     <div class="setgrid"><div></div><div class="lbl">kg</div><div class="lbl">reps</div><div class="lbl">rir</div><div></div></div>
     ${rows}
     <div class="prevline">${esc(prevTxt)}</div>
-    <div class="row" style="margin-top:9px;gap:8px">
+    <div class="row" style="margin-top:9px;gap:8px;flex-wrap:wrap">
       <button class="btn sm" data-act="addset" data-e="${en.id}">+ Serie</button>
       <button class="btn sm" data-act="delset" data-e="${en.id}">− Serie</button>
       <button class="btn sm ghost" data-act="rest" data-e="${en.id}">⏱ ${t.rest||90}s</button>
+      <button class="btn icon sm ghost" data-act="rest-edit" data-e="${en.id}" title="Cambiar el descanso de hoy">✎</button>
       <div class="grow"></div>
       <button class="btn sm ghost" data-act="guide" data-id="${en.exerciseId}">Cómo se hace</button>
     </div>
@@ -1417,6 +1418,17 @@ document.addEventListener('click',ev=>{
     en.sets.push({w:l.w,r:'',rir:'',done:false}); save(true); render(); return; }
   if(a==='delset'){ const en=entryOf(el.dataset.e); if(en.sets.length>1){en.sets.pop(); save(true); render();} return; }
   if(a==='rest'){ const en=entryOf(el.dataset.e); startTimer((en.target&&en.target.rest)||state.settings.rest, exName(en.exerciseId)); return; }
+  if(a==='rest-edit'){
+    const en=entryOf(el.dataset.e); if(!en) return;
+    const cur=(en.target&&en.target.rest)||state.settings.rest;
+    const v=prompt('Descanso de "'+exName(en.exerciseId)+'" para esta sesión (segundos):', String(cur));
+    if(v===null) return;
+    const n=parseInt(v,10);
+    if(!n || n<5 || n>900){ toast('Poné un número entre 5 y 900 segundos'); return; }
+    en.target=en.target||{}; en.target.rest=n;
+    save(true); render(); toast('Descanso '+n+'s — solo para hoy');
+    return;
+  }
   if(a==='guide'){ sheetGuide(el.dataset.id); return; }
   if(a==='add-ex'){
     openSheet(`<div class="h2">Agregar ejercicio</div>
