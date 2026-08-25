@@ -165,7 +165,7 @@ const Sync = (function () {
     const startedAt = Date.now();
     try {
       const f = await boot();
-      const { collection, doc, getDocs, query, where, writeBatch } = f.m.fs;
+      const { collection, doc, getDocs, query, where, writeBatch, waitForPendingWrites } = f.m.fs;
       const col = collection(f.db, "users", S.user.uid, "items");
 
       // Copia propia: si la sync falla a mitad de camino, el estado vivo de la app
@@ -180,6 +180,22 @@ const Sync = (function () {
       const lastPull = Number(localStorage.getItem("bitacora_lastpull") || 0);
       if (first || !lastPull) snap = await withTimeout(getDocs(col), "Bajando datos");
       else snap = await withTimeout(getDocs(query(col, where("updatedAt", ">", lastPull - 300000))), "Bajando cambios");
+
+      /* Con caché persistente, getDocs() no rechaza cuando el servidor no está:
+         el SDK reintenta en silencio y, una vez que se da por vencido, resuelve
+         con lo que haya en IndexedDB. La promesa cumple, el snapshot trae
+         documentos y nada distingue eso de una lectura real de la nube salvo
+         metadata.fromCache. Sin esta guarda, una base inexistente o una red
+         caída terminaban en "Al día", con la sombra y lastPull estampados como
+         si la conciliación hubiera ocurrido: el dispositivo quedaba convencido
+         de haber subido todo. fromCache === true significa exactamente una cosa
+         —no hubo ida y vuelta con el servidor— y sin eso no hay sincronización
+         que reportar. */
+      if (snap.metadata && snap.metadata.fromCache) {
+        if (!navigator.onLine) setStatus("offline", "Sin conexión — se sincroniza al volver");
+        else setStatus("error", "No se pudo confirmar con el servidor — sin conexión real");
+        return;
+      }
       const remote = {};
       snap.forEach(d => (remote[d.id] = d.data()));
 
@@ -248,6 +264,16 @@ const Sync = (function () {
         const batch = writeBatch(f.db);
         push.slice(i, i + 400).forEach(p => batch.set(doc(col, p.id), p.body));
         await withTimeout(batch.commit(), "Subiendo cambios");
+      }
+
+      /* commit() promete confirmación del backend, pero la promesa es por lote y
+         no dice nada de lo que el SDK pueda tener encolado de antes. waitForPendingWrites
+         resuelve solo cuando el servidor acusó recibo de TODAS las escrituras
+         locales pendientes: es la única evidencia dura de que lo que subimos
+         salió del dispositivo. Si no llega, el timeout lo convierte en error y
+         la sombra queda intacta, así el próximo intento reintenta de verdad. */
+      if (push.length && waitForPendingWrites) {
+        await withTimeout(waitForPendingWrites(f.db), "Confirmando subida");
       }
 
       // un save local pudo estampar la sombra mientras corría la red: no lo pisamos
