@@ -23,7 +23,13 @@ Cada fila es una serie: metés el peso y las repeticiones, y tocás el ✓. Al m
 Los ejercicios marcados con una letra (A, B) en vez de un número van intercalados: una serie de uno, después una del otro, así se ahorra tiempo sin perder rendimiento.
 
 **Durante el descanso**
-Aparece una barra abajo con la cuenta regresiva. Podés sumar o restar 15 segundos, o tocar "Listo" para saltarlo. Suena y vibra cuando se cumple.
+Aparece una barra abajo con la cuenta regresiva. Podés sumar o restar 15 segundos, o tocar "Listo" para saltarlo. Suenan tres avisos distintos, para que no tengas que mirar la pantalla: uno grave y corto cuando arranca, dos agudos rápidos unos segundos antes del final, y el triple pitido de siempre al cumplirse. Los descansos muy cortos (8 segundos o menos) se saltean el aviso del medio.
+
+**Cambiar el descanso en el momento**
+Al lado del botón **⏱** de cada ejercicio hay un lápiz: tocálo y ponés otro tiempo sin salir de la sesión. Vale para hoy nada más — tanto el botón como el cronómetro automático pasan a usar el número nuevo, pero la rutina queda con el descanso original para la próxima vez.
+
+**Reemplazar un ejercicio sobre la marcha**
+Si la máquina está ocupada o el hombro no te acompaña, tocá el **⋯** al lado del ejercicio y elegí **"Reemplazar ejercicio (solo por hoy)"**. Buscás el reemplazo en la base pública y esa fila cambia de ejercicio manteniendo el objetivo (series, repeticiones, RIR, descanso y superserie). Los números que ya habías cargado ahí se borran, porque no corresponden al ejercicio nuevo — si tenías alguna serie marcada como hecha, te pide confirmación antes. La rutina no se toca: la próxima sesión vuelve al ejercicio original, y el historial guarda el que hiciste de verdad.
 
 **Agregar un ejercicio a la sesión**
 Si un día cambiás algo sobre la marcha (una máquina ocupada, ganas de sumar algo), tocá **"+ Agregar ejercicio a esta sesión"** al final.
@@ -57,11 +63,13 @@ Tocá cualquier ejercicio: vas a ver las fotos (de una base pública de ejercici
 **Crear uno propio**
 Tocá "+ Nuevo". Podés escribirlo a mano, o tocar **"Buscar en la base pública"** para traer un ejercicio ya armado (nombre, grupo muscular, pasos y fotos) desde una base de más de 800 ejercicios — después ajustás lo que quieras y guardás. La primera búsqueda descarga esa base (~1 MB, necesita wifi); las siguientes búsquedas funcionan sin conexión.
 
+La base está en inglés, pero podés buscar en castellano: "polea", "mancuerna", "sentadilla", "gemelos" o "peso muerto" traen resultados igual. También sirve buscar por músculo o por equipo, no solo por nombre. Si aun así no aparece nada, la base pública simplemente no lo tiene — creálo a mano con tus propios pasos, que es exactamente para eso.
+
 **Editar o borrar**
 Cualquier ejercicio se puede modificar, incluidos los de fábrica. Si lo borrás y estaba en alguna rutina, te avisa antes.
 
 **Reemplazar un ejercicio sin perder el historial**
-Si editás un ejercicio que ya existe, en vez de "Buscar en la base pública" vas a ver **"Reemplazar por otro de la base pública"**: sobrescribe nombre, grupo, pasos y fotos con los del que elijas, pero mantiene el mismo ejercicio por dentro — todas las rutinas y sesiones que ya lo usaban siguen apuntando a él, sin romperse ni duplicarse.
+Si editás un ejercicio que ya existe, en vez de "Buscar en la base pública" vas a ver **"Reemplazar por otro de la base pública"**: sobrescribe nombre, grupo, pasos y fotos con los del que elijas, pero mantiene el mismo ejercicio por dentro — todas las rutinas y sesiones que ya lo usaban siguen apuntando a él, sin romperse ni duplicarse. En la lista de Ejercicios tenés el mismo reemplazo a un toque, con el botón **⇄** de cada fila, sin pasar por "Editar".
 
 ---
 
@@ -80,7 +88,7 @@ Cuatro vistas, arriba de todo:
 
 **Cuenta**: entrar o crear cuenta (con email o con Google) para que el historial se sincronice entre dispositivos. Sin cuenta, la app funciona igual pero los datos quedan solo en este teléfono.
 
-**Entrenamiento**: activar/desactivar el cronómetro automático, el sonido, la vibración, la pantalla siempre encendida durante la sesión, y el descanso por defecto.
+**Entrenamiento**: activar/desactivar el cronómetro automático, los sonidos del descanso (arranque, aviso previo y final), la vibración, la pantalla siempre encendida durante la sesión, y el descanso por defecto.
 
 **Calculadora de discos**: metés el peso total que querés levantar y te dice qué discos poner de cada lado de la barra.
 
@@ -98,7 +106,7 @@ Cuatro vistas, arriba de todo:
 No. Todo funciona sin señal. Internet solo hace falta para sincronizar con la cuenta o para buscar en la base pública de ejercicios.
 
 **¿Si entro con la misma cuenta desde el celular y la compu, veo lo mismo?**
-Sí, se sincroniza solo cuando hay conexión.
+Sí, se sincroniza solo cuando hay conexión. Si cambiaste lo mismo en los dos dispositivos sin sincronizar en el medio, queda el cambio más reciente por reloj. Lo que hiciste en un dispositivo y todavía no subiste nunca se borra por sincronizar desde el otro: se suma. En Ajustes, debajo de la cuenta, ves la hora del último intercambio con la nube — si los números de "Datos" no coinciden entre dispositivos, tocá "Sincronizar ahora" en los dos y volvé a mirar.
 
 **¿Mis datos son privados?**
 Si tenés cuenta, solo vos accedés a lo tuyo — nadie más, ni siquiera otra persona logueada en la misma app, puede verlo. Si además activás el PIN, queda protegido incluso en tu propio dispositivo.
