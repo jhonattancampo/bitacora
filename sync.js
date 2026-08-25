@@ -28,6 +28,12 @@
      t  updatedAt remoto con el que quedó conciliado
      lt momento en que se detectó el cambio local pendiente
      lh hash del contenido local cuando se estampó lt
+
+   Ninguna espera de red es infinita: toda llamada a la nube corre
+   contra un reloj (NET_TIMEOUT). Sin eso, una promesa que no resuelve
+   ni rechaza deja la tarjeta girando en "Sincronizando…" y —peor—
+   deja S.busy en true, con lo que "Sincronizar ahora" deja de hacer
+   nada para siempre.
    ========================================================= */
 const Sync = (function () {
   "use strict";
@@ -35,7 +41,7 @@ const Sync = (function () {
   const SHADOW_KEY = "bitacora_shadow_v2";
   const S = { ready: false, user: null, status: "local", msg: "", last: null, busy: false };
   const listeners = [];
-  let mods = null, fb = null, timer = null;
+  let mods = null, fb = null, timer = null, bootP = null;
 
   /* ---------- infraestructura ---------- */
   function on(cb) { listeners.push(cb); }
@@ -45,6 +51,36 @@ const Sync = (function () {
   function configured() {
     const c = window.FIREBASE_CONFIG;
     return !!(c && c.apiKey && c.projectId && !/^(PEGA|TU_|xxx)/i.test(c.apiKey));
+  }
+
+  /* Firestore no le pone límite de tiempo a nada. Una escritura que el
+     servidor nunca confirma, o un cliente trabado por IndexedDB, devuelve
+     una promesa que no resuelve ni rechaza: el catch de run() no se entera
+     y la UI queda pensando que todavía está en curso. Acá cualquier demora
+     se convierte en un error de verdad, visible y reintentable. */
+  const NET_TIMEOUT = 45000;
+  function withTimeout(promise, label, ms) {
+    let t = null;
+    const limit = new Promise((_, reject) => {
+      t = setTimeout(() => {
+        const e = new Error(label + ": la nube no respondió en " + Math.round((ms || NET_TIMEOUT) / 1000) + "s");
+        e.code = "sync/timeout";
+        reject(e);
+      }, ms || NET_TIMEOUT);
+    });
+    return Promise.race([promise, limit]).finally(() => clearTimeout(t));
+  }
+
+  // Mensaje corto y entendible para el badge; el detalle completo va a la consola.
+  function errText(e) {
+    if (!e) return "Falló la sincronización";
+    if (e.code === "sync/timeout") return e.message;
+    if (e.code === "permission-denied") return "La nube rechazó el permiso (reglas de Firestore)";
+    if (e.code === "unauthenticated") return "Sesión vencida: volvé a entrar";
+    if (e.code === "failed-precondition") return "Falta un índice en Firestore (ver consola)";
+    if (e.code === "unavailable") return "No se pudo llegar a la nube";
+    const txt = String(e.message || e.code || "Falló la sincronización");
+    return txt.length > 90 ? txt.slice(0, 90) + "…" : txt;
   }
 
   async function loadSDK() {
@@ -60,8 +96,14 @@ const Sync = (function () {
     return mods;
   }
 
-  async function boot() {
-    if (fb) return fb;
+  // Memoizado por promesa: dos run() simultáneos no pueden inicializar dos veces.
+  function boot() {
+    if (fb) return Promise.resolve(fb);
+    if (!bootP) bootP = withTimeout(bootOnce(), "Cargando Firebase").catch(e => { bootP = null; throw e; });
+    return bootP;
+  }
+
+  async function bootOnce() {
     const m = await loadSDK();
     const application = m.app.initializeApp(window.FIREBASE_CONFIG);
     let db;
@@ -126,7 +168,9 @@ const Sync = (function () {
       const { collection, doc, getDocs, query, where, writeBatch } = f.m.fs;
       const col = collection(f.db, "users", S.user.uid, "items");
 
-      const st = App.getState();
+      // Copia propia: si la sync falla a mitad de camino, el estado vivo de la app
+      // no queda con media conciliación aplicada encima.
+      const st = JSON.parse(JSON.stringify(App.getState()));
       const local = flatten(st);
       const sh = shadow();
       const first = !Object.keys(sh).length;
@@ -134,8 +178,8 @@ const Sync = (function () {
       /* 1. traer lo remoto */
       let snap;
       const lastPull = Number(localStorage.getItem("bitacora_lastpull") || 0);
-      if (first || !lastPull) snap = await getDocs(col);
-      else snap = await getDocs(query(col, where("updatedAt", ">", lastPull - 300000)));
+      if (first || !lastPull) snap = await withTimeout(getDocs(col), "Bajando datos");
+      else snap = await withTimeout(getDocs(query(col, where("updatedAt", ">", lastPull - 300000))), "Bajando cambios");
       const remote = {};
       snap.forEach(d => (remote[d.id] = d.data()));
 
@@ -203,7 +247,7 @@ const Sync = (function () {
       for (let i = 0; i < push.length; i += 400) {
         const batch = writeBatch(f.db);
         push.slice(i, i + 400).forEach(p => batch.set(doc(col, p.id), p.body));
-        await batch.commit();
+        await withTimeout(batch.commit(), "Subiendo cambios");
       }
 
       // un save local pudo estampar la sombra mientras corría la red: no lo pisamos
@@ -222,7 +266,7 @@ const Sync = (function () {
       setStatus("ok", (push.length ? "↑" + push.length + " " : "") + (pulled ? "↓" + pulled : "") || "Al día");
     } catch (e) {
       console.warn("[sync]", e);
-      setStatus("error", (e && e.code) || (e && e.message) || "Falló la sincronización");
+      setStatus("error", errText(e));
     } finally {
       S.busy = false;
       emit();

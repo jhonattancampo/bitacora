@@ -106,7 +106,7 @@ Cuatro vistas, arriba de todo:
 No. Todo funciona sin señal. Internet solo hace falta para sincronizar con la cuenta o para buscar en la base pública de ejercicios.
 
 **¿Si entro con la misma cuenta desde el celular y la compu, veo lo mismo?**
-Sí, se sincroniza solo cuando hay conexión. Si cambiaste lo mismo en los dos dispositivos sin sincronizar en el medio, queda el cambio más reciente por reloj. Lo que hiciste en un dispositivo y todavía no subiste nunca se borra por sincronizar desde el otro: se suma. En Ajustes, debajo de la cuenta, ves la hora del último intercambio con la nube — si los números de "Datos" no coinciden entre dispositivos, tocá "Sincronizar ahora" en los dos y volvé a mirar.
+Sí, se sincroniza solo cuando hay conexión. Si cambiaste lo mismo en los dos dispositivos sin sincronizar en el medio, queda el cambio más reciente por reloj. Lo que hiciste en un dispositivo y todavía no subiste nunca se borra por sincronizar desde el otro: se suma. En Ajustes, debajo de la cuenta, ves la hora del último intercambio con la nube — si los números de "Datos" no coinciden entre dispositivos, tocá "Sincronizar ahora" en los dos y volvé a mirar. Si algo falla, el cartel de la cuenta lo dice con todas las letras ("Error: …") en vez de quedarse girando: esperá y volvé a tocar "Sincronizar ahora".
 
 **¿Mis datos son privados?**
 Si tenés cuenta, solo vos accedés a lo tuyo — nadie más, ni siquiera otra persona logueada en la misma app, puede verlo. Si además activás el PIN, queda protegido incluso en tu propio dispositivo.
