@@ -44,6 +44,11 @@ const RANGES={'Pecho':[10,20],'Espalda':[10,20],'Deltoides lateral':[8,16],'Delt
 /* ---------- semilla: ejercicios (guía de ejecución) ---------- */
 function E(id,name,group,cues,err,tip){return {id,name,group,cues,err:err||'',tip:tip||'',custom:false};}
 const EX_IMAGES = {"press-inc": {"name": "Incline Dumbbell Press", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Press/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Press/1.jpg"]}, "press-maq": {"name": "Cable Chest Press", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Chest_Press/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Chest_Press/1.jpg"]}, "press-mil": {"name": "Seated Dumbbell Press", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Dumbbell_Press/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Dumbbell_Press/1.jpg"]}, "lat-polea": {"name": "Cable Seated Lateral Raise", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Seated_Lateral_Raise/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Seated_Lateral_Raise/1.jpg"]}, "face-pull": {"name": "Face Pull", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Face_Pull/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Face_Pull/1.jpg"]}, "tri-oh": {"name": "Cable Rope Overhead Triceps Extension", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Rope_Overhead_Triceps_Extension/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Rope_Overhead_Triceps_Extension/1.jpg"]}, "tri-cuerda": {"name": "Triceps Pushdown - Rope Attachment", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown_-_Rope_Attachment/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown_-_Rope_Attachment/1.jpg"]}, "fondos": {"name": "Dips - Chest Version", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dips_-_Chest_Version/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dips_-_Chest_Version/1.jpg"]}, "dominadas": {"name": "Pullups", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pullups/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pullups/1.jpg"]}, "remo-polea": {"name": "Seated Cable Rows", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Cable_Rows/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Cable_Rows/1.jpg"]}, "pullover": {"name": "Straight-Arm Pulldown", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Straight-Arm_Pulldown/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Straight-Arm_Pulldown/1.jpg"]}, "curl-inc": {"name": "Incline Dumbbell Curl", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Curl/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Curl/1.jpg"]}, "curl-martillo": {"name": "Alternate Hammer Curl", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Alternate_Hammer_Curl/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Alternate_Hammer_Curl/1.jpg"]}, "antebrazo": {"name": "Cable Wrist Curl", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Wrist_Curl/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Wrist_Curl/1.jpg"]}, "crunch-polea": {"name": "Cable Crunch", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crunch/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crunch/1.jpg"]}, "sentadilla": {"name": "Barbell Squat", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/1.jpg"]}, "pmr": {"name": "Romanian Deadlift", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Romanian_Deadlift/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Romanian_Deadlift/1.jpg"]}, "femoral-tum": {"name": "Lying Leg Curls", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Lying_Leg_Curls/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Lying_Leg_Curls/1.jpg"]}, "ext-cuad": {"name": "Leg Extensions", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leg_Extensions/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leg_Extensions/1.jpg"]}, "gemelo-pie": {"name": "Standing Barbell Calf Raise", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Barbell_Calf_Raise/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Barbell_Calf_Raise/1.jpg"]}, "plancha": {"name": "Plank", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Plank/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Plank/1.jpg"]}, "banca": {"name": "Barbell Bench Press - Medium Grip", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/1.jpg"]}, "cruce-poleas": {"name": "Cable Crossover", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crossover/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crossover/1.jpg"]}, "remo-maq": {"name": "Leverage High Row", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leverage_High_Row/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leverage_High_Row/1.jpg"]}, "jalon-neutro": {"name": "Close-Grip Front Lat Pulldown", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Close-Grip_Front_Lat_Pulldown/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Close-Grip_Front_Lat_Pulldown/1.jpg"]}, "curl-polea": {"name": "Standing Biceps Cable Curl", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Biceps_Cable_Curl/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Biceps_Cable_Curl/1.jpg"]}, "tri-recto": {"name": "Triceps Pushdown - V-Bar Attachment", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown_-_V-Bar_Attachment/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown_-_V-Bar_Attachment/1.jpg"]}, "bulgara": {"name": "Split Squat with Dumbbells", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Split_Squat_with_Dumbbells/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Split_Squat_with_Dumbbells/1.jpg"]}, "femoral-sent": {"name": "Seated Leg Curl", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Leg_Curl/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Leg_Curl/1.jpg"]}, "gemelo-sent": {"name": "Seated Calf Raise", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Calf_Raise/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Calf_Raise/1.jpg"]}, "aductores": {"name": "Thigh Adductor", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Thigh_Adductor/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Thigh_Adductor/1.jpg"]}, "elev-piernas": {"name": "Hanging Leg Raise", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Hanging_Leg_Raise/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Hanging_Leg_Raise/1.jpg"]}, "prensa": {"name": "Leg Press", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leg_Press/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leg_Press/1.jpg"]}};
+/* Fotos que no son exactamente del ejercicio descrito: la base pública no tiene
+   una foto de esa variante y la aclaramos en vez de hacerla pasar por exacta. */
+const EX_PHOTO_NOTE = {
+  'lat-polea': 'Foto de referencia: variante sentada. La ejecución de pie sigue el mismo patrón de movimiento.'
+};
 const SEED_EX=[
 E('press-inc','Press inclinado con mancuernas (30°)','Pecho',[
  'Banco a 30° (dos o tres muescas desde plano). Más inclinado que eso y el hombro se lleva el trabajo.',
@@ -315,6 +320,7 @@ function seedState(){return {
   v:1, exercises:SEED_EX.map(x=>{
     const o=Object.assign({},x);
     if(EX_IMAGES[x.id]) o.images=EX_IMAGES[x.id].images.slice();
+    if(EX_PHOTO_NOTE[x.id]) o.photoNote=EX_PHOTO_NOTE[x.id];
     return o;
   }), routines:SEED_ROUTINES(),
   sessions:[], bw:[], active:null,
@@ -328,6 +334,7 @@ let state = readStore() || seedState();
   state.exercises=state.exercises||[]; state.routines=state.routines||[]; state.sessions=state.sessions||[];
   state.exercises.forEach(e=>{
     if(!e.images) e.images = (EX_IMAGES[e.id] && !e.custom) ? EX_IMAGES[e.id].images.slice() : [];
+    if(!e.photoNote && EX_PHOTO_NOTE[e.id] && !e.custom && !e.sourceId) e.photoNote = EX_PHOTO_NOTE[e.id];
   });
   state.bw=state.bw||[]; state.ui=state.ui||{}; 
   state.settings=Object.assign({rest:90,sound:true,vibrate:true,bar:20,autoTimer:true,wake:true,theme:'dark',accent:'mostaza'},state.settings||{});
@@ -499,17 +506,87 @@ document.addEventListener('visibilitychange', ()=>{
    localmente para buscar sin conexión después.
    ========================================================= */
 const EXDB_URL='https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json';
-const EXDB_KEY='bitacora_exdb_v1';
+const EXDB_KEY='bitacora_exdb_v2';
 let exdbCache=null;
 function exdbLoaded(){ if(exdbCache) return exdbCache; try{ exdbCache=JSON.parse(localStorage.getItem(EXDB_KEY)||'null'); }catch(e){} return exdbCache; }
 async function exdbEnsure(){
   const have=exdbLoaded(); if(have) return have;
   const res=await fetch(EXDB_URL); if(!res.ok) throw new Error('No se pudo descargar');
   const data=await res.json();
-  const slim=data.map(e=>({id:e.id,name:e.name,muscles:e.primaryMuscles||[],instructions:e.instructions||[],images:(e.images||[]).map(p=>'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/'+p)}));
+  const slim=data.map(e=>({id:e.id,name:e.name,muscles:e.primaryMuscles||[],equipment:e.equipment||'',instructions:e.instructions||[],images:(e.images||[]).map(p=>'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/'+p)}));
   exdbCache=slim;
+  try{ localStorage.removeItem('bitacora_exdb_v1'); }catch(e){}
   try{ localStorage.setItem(EXDB_KEY, JSON.stringify(slim)); }catch(e){}
   return slim;
+}
+
+/* ---------- buscador en español contra una base en inglés ----------
+   La base pública está toda en inglés. Traducimos los términos de gimnasio
+   más comunes antes de buscar, y buscamos también contra músculo y equipo,
+   no solo contra el nombre. */
+const EXDB_PHRASES=[
+  ['peso muerto','deadlift'],['pesa rusa','kettlebells'],['pesas rusas','kettlebells'],
+  ['de pie','standing'],['peso corporal','body only'],['sin peso','body only'],
+  ['empuje de cadera','hip thrust'],['elevacion de talones','calf raise'],
+  ['jalon al pecho','lat pulldown'],['prensa de piernas','leg press']
+];
+const EXDB_WORDS={
+  mancuerna:['dumbbell'], barra:['barbell','bar'], polea:['cable'], maquina:['machine','leverage'],
+  banda:['bands'], goma:['bands'], kettlebell:['kettlebells'], balon:['ball'], pelota:['ball'],
+  sentado:['seated'], parado:['standing'], pie:['standing'], banco:['bench'], suelo:['floor','lying'],
+  acostado:['lying'], tumbado:['lying'], inclinado:['incline'], declinado:['decline'],
+  press:['press'], curl:['curl'], remo:['row'], tiron:['row','pull'], jalon:['pulldown','lat pulldown'],
+  extension:['extension'], elevacion:['raise'], sentadilla:['squat'], zancada:['lunge'],
+  estocada:['lunge'], empuje:['push','thrust'], dominada:['pullups','pull-up','chin'],
+  fondo:['dips'], flexion:['pushups','push-up'], apertura:['fly','flyes'], cruce:['crossover'],
+  encogimiento:['shrug'], patada:['kickback'], plancha:['plank'], puente:['bridge'],
+  martillo:['hammer'], concentrado:['concentration'], alterno:['alternate'], alternado:['alternate'],
+  cerrado:['close'], abierto:['wide'], agarre:['grip'], frontal:['front'], trasero:['behind','rear'],
+  prensa:['leg press','press'], hiperextension:['hyperextension'],
+  pecho:['chest'], pectoral:['chest'], espalda:['lats','back'], dorsal:['lats'],
+  hombro:['shoulders'], deltoides:['shoulders','deltoid'], trapecio:['traps'],
+  bicep:['biceps'], tricep:['triceps'], antebrazo:['forearms'], muneca:['wrist'],
+  cuadricep:['quadriceps'], isquio:['hamstrings'], femoral:['hamstrings'], isquiotibial:['hamstrings'],
+  gluteo:['glutes'], cola:['glutes'], cadera:['hip'], aductor:['adductors'], abductor:['abductors'],
+  gemelo:['calves','calf'], pantorrilla:['calves','calf'], abdominal:['abdominals','ab '],
+  abdomen:['abdominals'], core:['abdominals'], cuello:['neck'], lumbar:['lower back'],
+  pierna:['leg'], brazo:['arm'], rodilla:['knee'], cuerpo:['body']
+};
+const EXDB_STOP=new Set(['de','del','la','el','los','las','en','con','a','al','y','o','un','una','para','por','the','of']);
+const noAccent=s=>String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+// un token puede coincidir por sí mismo, por su singular o por cualquiera de sus traducciones
+function exdbTerms(tok){
+  const out=[];
+  const add=x=>{ if(x && out.indexOf(x)<0) out.push(x); };
+  const forms=[tok];
+  if(tok.length>3 && /es$/.test(tok)) forms.push(tok.slice(0,-2));
+  if(tok.length>3 && /s$/.test(tok)) forms.push(tok.slice(0,-1));
+  forms.forEach(add);
+  forms.forEach(f=>{ const v=EXDB_WORDS[f]; if(v) v.forEach(add); });
+  return out;
+}
+function exdbTokens(q){
+  let n=' '+noAccent(q).replace(/[^a-z0-9]+/g,' ').trim()+' ';
+  EXDB_PHRASES.forEach(([es,en])=>{ n=n.split(' '+es+' ').join(' '+en+' '); });
+  return n.trim().split(/\s+/).filter(t=>t && !EXDB_STOP.has(t));
+}
+function exdbMatch(e,tokens,full){
+  const name=noAccent(e.name);
+  const rest=noAccent((e.muscles||[]).join(' ')+' '+(e.equipment||''));
+  let score=0;
+  for(const tok of tokens){
+    let hit=0;
+    // una traducción de varias palabras ("leg press") es más específica que una suelta
+    for(const t of exdbTerms(tok)){
+      if(name.includes(t)) hit=Math.max(hit, t.indexOf(' ')>=0?5:3);
+      else if(rest.includes(t)) hit=Math.max(hit,1);
+    }
+    if(!hit) return -1;
+    score+=hit;
+  }
+  if(full && name.includes(full)) score+=6;
+  if(full && name.startsWith(full)) score+=3;
+  return score;
 }
 const MUSCLE_TO_GROUP={chest:'Pecho',lats:'Espalda','middle back':'Espalda','lower back':'Espalda',traps:'Espalda',
   biceps:'Bíceps',triceps:'Tríceps',forearms:'Antebrazo',quadriceps:'Cuádriceps',hamstrings:'Isquios/Glúteo',
@@ -540,7 +617,7 @@ function sheetExDbSearch(mode, ctx){
   };
   openSheet(`<div class="between"><div class="h2">${titles[exdbMode]}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
     <div class="tiny dim" style="margin:4px 0 10px">${subs[exdbMode]}</div>
-    <input type="text" id="exdbQ" placeholder="Buscar en inglés: bench, curl, squat…" autofocus>
+    <input type="text" id="exdbQ" placeholder="Buscar en español o inglés: polea, sentadilla, bench…" autofocus>
     <div id="exdbOut" class="stack" style="margin-top:10px"><div class="tiny dim">Escribí al menos 3 letras.</div></div>`);
   const inp=$('#exdbQ');
   let t=null;
@@ -554,14 +631,22 @@ async function runExdbSearch(q){
   out.innerHTML='<div class="tiny dim">Buscando…</div>';
   let db;
   try{ db=await exdbEnsure(); }catch(e){ out.innerHTML='<div class="warn">No se pudo descargar la base (¿sin internet?). Probá de nuevo con wifi.</div>'; return; }
-  const ql=q.toLowerCase();
-  const hits=db.filter(e=>e.name.toLowerCase().includes(ql)).slice(0,20);
-  if(!hits.length){ out.innerHTML='<div class="tiny dim">Nada con ese término.</div>'; return; }
+  const full=noAccent(q).replace(/[^a-z0-9]+/g,' ').trim();
+  const tokens=exdbTokens(q);
+  if(!tokens.length){ out.innerHTML='<div class="tiny dim">Escribí al menos 3 letras.</div>'; return; }
+  const hits=db.map(e=>({e,sc:exdbMatch(e,tokens,full)})).filter(x=>x.sc>=0)
+    .sort((a,b)=>b.sc-a.sc||a.e.name.length-b.e.name.length).slice(0,20).map(x=>x.e);
+  if(!hits.length){
+    out.innerHTML=`<div class="tiny dim">Nada con ese término en la base pública. Probá con otra palabra (por músculo o equipo también sirve), o creá el ejercicio a mano con tus propios pasos.</div>
+      <button class="btn block" data-act="x-new" style="margin-top:10px">+ Crear el ejercicio a mano</button>`;
+    return;
+  }
   out.innerHTML=hits.map(e=>{
     const got=alreadyImported(e.id);
+    const meta=[(e.muscles||[]).join(', '),e.equipment].filter(Boolean).join(' · ')||'—';
     return `<div class="li" data-act="exdb-pick" data-id="${esc(e.id)}" style="cursor:pointer">
     ${e.images[0]?`<img src="${esc(e.images[0])}" loading="lazy" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex:0 0 auto" onerror="this.style.display='none'">`:''}
-    <div class="grow"><div class="h3 trunc">${esc(e.name)}</div><div class="tiny dim">${esc((e.muscles||[]).join(', ')||'—')}</div></div>
+    <div class="grow"><div class="h3 trunc">${esc(e.name)}</div><div class="tiny dim">${esc(meta)}</div></div>
     ${got?'<span class="chip ok">En tu biblioteca</span>':''}
   </div>`;}).join('');
 }
@@ -617,7 +702,7 @@ async function pickExdb(id){
     if(!confirm(`Esto reemplaza el nombre, grupo, pasos y fotos actuales por los de "${e.name}". ¿Seguir?`)) return;
     ex.name=e.name; ex.group=guessGroup(e.name,e.muscles); ex.cues=e.instructions;
     ex.err=''; ex.tip='Reemplazado desde Free Exercise DB.'; ex.images=e.images;
-    ex.sourceId=e.id; ex.custom=false;
+    ex.sourceId=e.id; ex.custom=false; delete ex.photoNote;
     save(true);
     toast('Ejercicio reemplazado: '+ex.name);
     sheetExercise(exdbExId);
@@ -843,7 +928,8 @@ function sheetGuide(id){
   const hist=exerciseHistory(id).slice(0,5);
   const photos=(e.images&&e.images.length)?`<div class="row" style="gap:8px;margin-top:12px;overflow-x:auto" data-photos='${esc(JSON.stringify(e.images))}'>
     ${e.images.map((u,i)=>`<img src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" style="height:150px;border-radius:10px;border:1px solid var(--line);flex:0 0 auto;cursor:zoom-in" onerror="this.style.display='none'">`).join('')}
-    </div><div class="tiny dim" style="margin-top:5px">Fotos: Free Exercise DB (dominio público)</div>`:'';
+    </div>${e.photoNote?`<div class="warn" style="margin-top:8px">${esc(e.photoNote)}</div>`:''}
+    <div class="tiny dim" style="margin-top:5px">Fotos: Free Exercise DB (dominio público)</div>`:'';
   openSheet(`<div class="between"><div class="grow"><div class="eyebrow">${esc(e.group)}</div><div class="h2">${esc(e.name)}</div></div>
     <button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
     ${photos}
