@@ -19,3 +19,6 @@ npm-debug.log*
 bitacora-*.json
 bitacora-*.csv
 .atl/
+
+# Config local del editor / preview
+.claude/

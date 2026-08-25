@@ -14,6 +14,20 @@
      bw_<fecha>        → pesada
    Los borrados dejan lápida ({deleted:true}) para que se
    propaguen a los otros dispositivos.
+
+   Resolución de conflictos: last-write-wins real por reloj.
+   Cuando la misma entidad cambió de los dos lados desde la
+   última sincronización, gana la versión con updatedAt más
+   alto — nunca "el que sincronizó último".
+   Nunca se borra por ausencia: que un dispositivo no tenga
+   una entidad no significa que esté borrada. Solo se borra
+   con lápida explícita para ese id.
+
+   La sombra (SHADOW_KEY) guarda por documento:
+     h  hash del contenido local en la última sincronización
+     t  updatedAt remoto con el que quedó conciliado
+     lt momento en que se detectó el cambio local pendiente
+     lh hash del contenido local cuando se estampó lt
    ========================================================= */
 const Sync = (function () {
   "use strict";
@@ -106,6 +120,7 @@ const Sync = (function () {
     if (!S.user || S.busy) return;
     if (!navigator.onLine) { setStatus("offline", "Sin conexión — se sincroniza al volver"); return; }
     S.busy = true; setStatus("syncing", "Sincronizando…");
+    const startedAt = Date.now();
     try {
       const f = await boot();
       const { collection, doc, getDocs, query, where, writeBatch } = f.m.fs;
@@ -128,8 +143,24 @@ const Sync = (function () {
       const ids = new Set(Object.keys(local).concat(Object.keys(sh), Object.keys(remote)));
       const push = [];
       const pushed = new Set();
+      const touched = new Set();
       let pulled = 0;
       const now = Date.now();
+
+      // la nube gana para este id: se aplica el documento remoto sobre el estado local
+      function takeRemote(id, R) {
+        applyRemote(st, id, R);
+        sh[id] = { h: hashOf(R), t: R.updatedAt || now };
+        touched.add(id); pulled++;
+      }
+      // lo local gana para este id: se sube (o se sube la lápida si acá se borró)
+      function takeLocal(id, L, prev, lHash) {
+        if (L) push.push({ id, body: { type: L.type, data: L.data, deleted: false, updatedAt: now } });
+        else if (prev) push.push({ id, body: { type: parseId(id).type, data: null, deleted: true, updatedAt: now } });
+        else return;
+        pushed.add(id); touched.add(id);
+        sh[id] = { h: lHash, t: now };
+      }
 
       ids.forEach(id => {
         const L = local[id] || null;
@@ -138,18 +169,24 @@ const Sync = (function () {
         const lJson = L ? JSON.stringify(L) : "";
         const lHash = L ? hash(lJson) : 0;
         const localChanged = !prev ? !!L : prev.h !== lHash;
-        const remoteNewer = R && (!prev || (R.updatedAt || 0) > (prev.t || 0));
+        const remoteTs = (R && R.updatedAt) || 0;
+        const remoteNewer = !!R && (!prev || remoteTs > (prev.t || 0));
 
-        // primer arranque en este dispositivo: la nube manda, lo local solo suma lo que allá no existe
-        if (first && R) { applyRemote(st, id, R); sh[id] = { h: hashOf(R), t: R.updatedAt || now }; pulled++; return; }
+        // primer arranque en este dispositivo: traer todo antes de empezar a comparar.
+        // Lo local que la nube no tenga se sube después del bucle, no se pierde nada.
+        if (first && R) { takeRemote(id, R); return; }
 
-        if (localChanged && (!remoteNewer || !first)) {
-          if (L) { push.push({ id, body: { type: L.type, data: L.data, deleted: false, updatedAt: now } }); pushed.add(id); }
-          else if (prev) { push.push({ id, body: { type: parseId(id).type, data: null, deleted: true, updatedAt: now } }); pushed.add(id); }
-          sh[id] = { h: lHash, t: now };
+        // Conflicto real: la misma entidad cambió de los dos lados desde la última
+        // sincronización. Gana la más reciente por reloj, en toda sincronización
+        // (no solo en la primera).
+        if (localChanged && remoteNewer) {
+          const localTs = (prev && prev.lt) || now;
+          if (remoteTs > localTs) takeRemote(id, R);
+          else takeLocal(id, L, prev, lHash);
           return;
         }
-        if (remoteNewer) { applyRemote(st, id, R); pulled++; sh[id] = { h: hashOf(R), t: R.updatedAt || now }; }
+        if (localChanged) { takeLocal(id, L, prev, lHash); return; }
+        if (remoteNewer) { takeRemote(id, R); }
       });
 
       // en el primer arranque, empujar lo local que no existe en la nube
@@ -169,6 +206,15 @@ const Sync = (function () {
         await batch.commit();
       }
 
+      // un save local pudo estampar la sombra mientras corría la red: no lo pisamos
+      const during = shadow();
+      Object.keys(during).forEach(id => {
+        const d = during[id];
+        if (!d || !d.lt || d.lt < startedAt) return;
+        if (!touched.has(id)) { sh[id] = d; return; }
+        sh[id].lt = d.lt; sh[id].lh = d.lh;
+      });
+
       saveShadow(sh);
       localStorage.setItem("bitacora_lastpull", String(now));
       if (pulled) App.adoptState(st);
@@ -183,8 +229,41 @@ const Sync = (function () {
     }
   }
 
+  /* Marca en la sombra cuándo cambió cada documento local, para que la
+     resolución de conflictos pueda comparar relojes de verdad. Corre junto
+     al save local, así la marca es la hora del cambio y no la de la sync. */
+  function stamp() {
+    if (!S.user || !window.App) return;
+    try {
+      const local = flatten(App.getState());
+      const sh = shadow();
+      const now = Date.now();
+      let dirty = false;
+      Object.keys(local).forEach(id => {
+        const h = hash(JSON.stringify(local[id]));
+        const prev = sh[id];
+        if (prev && prev.h === h) {
+          if (prev.lt) { delete prev.lt; delete prev.lh; dirty = true; }
+          return;
+        }
+        if (prev && prev.lh === h) return;            // ya estampado con este contenido
+        sh[id] = Object.assign(prev || { h: 0, t: 0 }, { lt: now, lh: h });
+        dirty = true;
+      });
+      // borrado local: estaba en la sombra con contenido y ya no está en el estado
+      Object.keys(sh).forEach(id => {
+        if (local[id]) return;
+        const prev = sh[id];
+        if (!prev.h || prev.lh === 0) return;
+        prev.lt = now; prev.lh = 0; dirty = true;
+      });
+      if (dirty) saveShadow(sh);
+    } catch (e) {}
+  }
+
   function schedule(ms) {
     if (!S.user) return;
+    stamp();
     clearTimeout(timer);
     timer = setTimeout(() => run("auto"), ms || 4000);
   }
@@ -236,6 +315,9 @@ const Sync = (function () {
   // punto de entrada para pruebas automatizadas (no se usa en producción)
   function _inject(backend, user) { fb = backend; S.user = user; }
 
-  return { init, on, run, schedule, signIn, signUp, signOut, reset, signInGoogle, configured, state: S, _inject };
+  // última vez que este dispositivo trajo datos de la nube (diagnóstico en Ajustes)
+  function lastPull() { return Number(localStorage.getItem("bitacora_lastpull") || 0) || null; }
+
+  return { init, on, run, schedule, signIn, signUp, signOut, reset, signInGoogle, configured, lastPull, state: S, _inject };
 })();
 window.Sync = Sync;
