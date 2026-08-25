@@ -1151,10 +1151,13 @@ function accountCard(){
       <button class="btn block primary" data-act="auth-open">Entrar o crear cuenta</button>
     </div>`;
   }
+  const lp=(window.Sync&&Sync.lastPull)?Sync.lastPull():null;
+  const lpTxt=lp?new Date(lp).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'nunca';
   return `<div class="card">
     <div class="between"><div class="eyebrow">Cuenta</div>${syncBadge()}</div>
     <div class="h3" style="margin-top:4px">${esc(S.user.email||'')}</div>
     <div class="tiny dim">${S.last?'Última sincronización: '+new Date(S.last).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'Todavía no sincronizó'}</div>
+    <div class="tiny dim">Último intercambio con la nube: ${esc(lpTxt)}</div>
     <div class="grid2" style="margin-top:10px">
       <button class="btn" data-act="sync-now">Sincronizar ahora</button>
       <button class="btn ghost" data-act="auth-out">Cerrar sesión</button>
