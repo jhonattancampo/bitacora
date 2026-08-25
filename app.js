@@ -618,21 +618,22 @@ let exdbRoutineId=null;  // 'routine' y 'replace-item'
 let exdbItemId=null;     // solo usado en modo 'replace-item'
 let exdbExId=null;       // solo usado en modo 'replace-ex'
 let exdbEntryId=null;    // solo usado en modo 'session-item'
+let exdbPending=null;    // ejercicio elegido en 'session-item', esperando el alcance
 function alreadyImported(sourceId){ return state.exercises.find(x=>x.sourceId===sourceId); }
 function sheetExDbSearch(mode, ctx){
-  exdbMode=mode||'form'; exdbRoutineId=null; exdbItemId=null; exdbExId=null; exdbEntryId=null;
+  exdbMode=mode||'form'; exdbRoutineId=null; exdbItemId=null; exdbExId=null; exdbEntryId=null; exdbPending=null;
   if(exdbMode==='routine') exdbRoutineId=ctx||null;
   if(exdbMode==='replace-item'){ exdbRoutineId=(ctx&&ctx.routineId)||null; exdbItemId=(ctx&&ctx.itemId)||null; }
   if(exdbMode==='replace-ex') exdbExId=ctx||null;
   if(exdbMode==='session-item') exdbEntryId=ctx||null;
-  const titles={form:'Base pública de ejercicios',library:'Explorar más ejercicios',routine:'Agregar ejercicio a la rutina','replace-item':'Reemplazar ejercicio de la rutina','replace-ex':'Reemplazar ejercicio','session-item':'Reemplazar solo por hoy'};
+  const titles={form:'Base pública de ejercicios',library:'Explorar más ejercicios',routine:'Agregar ejercicio a la rutina','replace-item':'Reemplazar ejercicio de la rutina','replace-ex':'Reemplazar ejercicio','session-item':'Reemplazar ejercicio'};
   const subs={
     form:'873 ejercicios de Free Exercise DB (dominio público), con fotos. Buscá uno y se completa el formulario; después ajustá lo que quieras y guardá.',
     library:'873 ejercicios con fotos. Tocá uno para sumarlo directo a tu biblioteca — podés elegir varios seguidos.',
     routine:'Tocá un ejercicio para agregarlo a esta rutina. Si no estaba en tu biblioteca, se suma solo.',
     'replace-item':'Elegí un reemplazo para esta fila puntual. Series, reps, RIR y descanso ya cargados no se tocan.',
     'replace-ex':'Elegí un reemplazo: se sobrescriben nombre, grupo, pasos y fotos de este ejercicio. Las rutinas que ya lo usan siguen apuntando a él, sin romperse.',
-    'session-item':'Elegí con qué cubrís este bloque hoy. Se mantienen series, reps, RIR y descanso; se borran los números ya cargados. La rutina no se toca.'
+    'session-item':'Elegí con qué cubrís este bloque. Se mantienen series, reps, RIR y descanso; se borran los números ya cargados. Después elegís si el cambio es solo por hoy o queda en la rutina.'
   };
   openSheet(`<div class="between"><div class="h2">${titles[exdbMode]}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
     <div class="tiny dim" style="margin:4px 0 10px">${subs[exdbMode]}</div>
@@ -718,13 +719,8 @@ async function pickExdb(id){
   }
   if(exdbMode==='session-item'){
     const en=entryOf(exdbEntryId); if(!en) return;
-    const done=en.sets.filter(x=>x.done).length;
-    if(done && !confirm('Ya marcaste '+done+(done>1?' series hechas':' serie hecha')+' en este ejercicio. Al reemplazarlo se borran esos números; el objetivo se mantiene. ¿Seguir?')) return;
-    const created=quickImport(e);
-    en.exerciseId=created.id;
-    en.sets.forEach(x=>{ x.w=''; x.r=''; x.rir=''; x.done=false; });
-    save(true); closeSheet(); render();
-    toast('Solo por hoy: '+created.name);
+    exdbPending=e;
+    sheetSwapScope(en, e);
     return;
   }
   if(exdbMode==='replace-ex'){
@@ -739,6 +735,34 @@ async function pickExdb(id){
     sheetExercise(exdbExId);
     return;
   }
+}
+
+/* Las entries de la sesión no guardan el id del ítem de la rutina que las originó,
+   y durante el entrenamiento se pueden agregar y quitar ejercicios: el índice no
+   alcanza para emparejarlas. Se busca por ejercicio y, si la rutina repite el
+   mismo ejercicio, se respeta el orden de aparición. */
+function routineItemForEntry(en){
+  const a=state.active; if(!a||!a.routineId) return null;
+  const r=routineById(a.routineId); if(!r) return null;
+  const hits=r.items.filter(it=>it.exerciseId===en.exerciseId);
+  if(!hits.length) return null;
+  const nth=a.entries.filter(x=>x.exerciseId===en.exerciseId).indexOf(en);
+  return hits[nth]||hits[0];
+}
+
+/* Cambiar el ejercicio de hoy y cambiar la rutina son dos intenciones distintas.
+   El alcance se decide acá, con el reemplazo ya elegido, y no antes. */
+function sheetSwapScope(en, e){
+  const done=en.sets.filter(x=>x.done).length;
+  const it=routineItemForEntry(en);
+  const rt=it?routineById(state.active.routineId):null;
+  openSheet(`<div class="h2">Reemplazar por ${esc(e.name)}</div>
+    <div class="tiny dim" style="margin:4px 0 10px">Se mantienen series, reps, RIR y descanso.</div>
+    ${done?`<div class="note">Ya marcaste ${done}${done>1?' series hechas':' serie hecha'} en este ejercicio: al reemplazarlo se borran esos números. El objetivo se mantiene.</div>`:''}
+    <button class="btn block primary" data-act="swap-today" data-e="${esc(en.id)}" style="margin-top:10px">Solo por hoy</button>
+    ${rt?`<button class="btn block" data-act="swap-forever" data-e="${esc(en.id)}" style="margin-top:8px">Para siempre (actualizar la rutina)</button>
+      <div class="tiny dim" style="margin-top:6px">"Para siempre" además deja el cambio hecho en <b>${esc(rt.name)}</b> para las próximas veces.</div>`
+    :`<div class="tiny dim" style="margin-top:8px">Esta es una sesión libre: no hay rutina que actualizar.</div>`}`);
 }
 
 /* =========================================================
@@ -1468,12 +1492,26 @@ document.addEventListener('click',ev=>{
       <label class="f"><span class="eyebrow">Nota para esta sesión</span><textarea id="enNote" placeholder="Ej: molestia en el hombro, bajé el peso">${esc(en.note||'')}</textarea></label>
       <button class="btn block primary" data-act="entry-note" data-e="${id}" style="margin-top:10px">Guardar nota</button>
       <button class="btn block ghost" data-act="guide" data-id="${en.exerciseId}" style="margin-top:8px">Ver ejecución</button>
-      <button class="btn block ghost" data-act="entry-replace" data-e="${id}" style="margin-top:8px">Reemplazar ejercicio (solo por hoy)</button>
+      <button class="btn block ghost" data-act="entry-replace" data-e="${id}" style="margin-top:8px">Reemplazar ejercicio</button>
       <button class="btn block danger ghost" data-act="entry-del" data-e="${id}" style="margin-top:8px">Quitar de la sesión</button>`);
     return;
   }
   if(a==='entry-note'){ const en=entryOf(el.dataset.e); en.note=$('#enNote').value.trim(); save(true); closeSheet(); render(); return; }
   if(a==='entry-replace'){ sheetExDbSearch('session-item', el.dataset.e); return; }
+  if(a==='swap-today' || a==='swap-forever'){
+    const en=entryOf(el.dataset.e), e=exdbPending;
+    if(!en || !e) return;
+    // el ítem se resuelve antes de tocar la entry: el emparejamiento usa el ejercicio saliente
+    const it=a==='swap-forever'?routineItemForEntry(en):null;
+    const created=quickImport(e);
+    if(it) it.exerciseId=created.id;
+    en.exerciseId=created.id;
+    en.sets.forEach(x=>{ x.w=''; x.r=''; x.rir=''; x.done=false; });
+    exdbPending=null;
+    save(true); closeSheet(); render();
+    toast(it?('Actualizado en la rutina: '+created.name):('Solo por hoy: '+created.name));
+    return;
+  }
   if(a==='entry-del'){ state.active.entries=state.active.entries.filter(e=>e.id!==el.dataset.e); save(true); closeSheet(); render(); return; }
 
   /* rutinas */
