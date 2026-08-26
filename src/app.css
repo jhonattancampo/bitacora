@@ -174,7 +174,15 @@
   .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
   /* ---------- header ---------- */
-  header.top{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,var(--bg) 72%,rgba(14,19,22,0));padding:14px 0 10px}
+  /* El inset superior va aca y no en el body: el header es sticky en top:0, y el
+     offset de un sticky se resuelve contra el scrollport, no contra la caja de
+     padding. Un padding-top en el body daria aire al cargar y lo perderia en
+     cuanto scrolleas. Es el espejo de lo que nav ya hace abajo.
+     Sin esto, instalada en el telefono la app arranca en el y=0 fisico de la
+     pantalla (viewport-fit=cover + status-bar-style black-translucent) y la
+     barra de estado se come el encabezado entero. En una pestana del navegador
+     el inset vale 0 y la regla no cambia nada. */
+  header.top{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,var(--bg) 72%,rgba(14,19,22,0));padding:calc(14px + env(safe-area-inset-top)) 0 10px}
   .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
   .brand{display:flex;align-items:center;gap:9px}
   .mark{width:26px;height:26px;border-radius:6px;background:var(--sig);position:relative;flex:0 0 auto}
