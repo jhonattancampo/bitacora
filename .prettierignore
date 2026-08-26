@@ -1,0 +1,20 @@
+dist
+dev-dist
+node_modules
+package-lock.json
+
+# app.ts and sync.ts keep the hand-written formatting they had as .js files.
+# Running Prettier over them would rewrite ~2300 lines and turn the TypeScript
+# migration into an unreviewable diff. They get reformatted when the code around
+# them is rewritten, not before.
+src/app.ts
+src/sync.ts
+src/app.css
+
+# The user edits this file by hand, pasting keys from the Firebase console.
+public/config.js
+
+# Hand-written markup and prose. Reformatting them adds diff noise and nothing else.
+index.html
+*.md
+public/manifest.webmanifest
