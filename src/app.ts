@@ -621,9 +621,9 @@ function sheetExDbSearch(mode?, ctx?){
     'session-item':'Elegí con qué cubrís este bloque. Se mantienen series, reps, RIR y descanso; se borran los números ya cargados. Después elegís si el cambio es solo por hoy o queda en la rutina.'
   };
   openSheet(`<div class="between"><div class="h2">${titles[exdbMode]}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
-    <div class="tiny dim mt-1 mx-0 mb-2.5">${subs[exdbMode]}</div>
+    <div class="text-tiny text-dim mt-1 mx-0 mb-2.5">${subs[exdbMode]}</div>
     <input type="text" id="exdbQ" placeholder="Buscar en español o inglés: polea, sentadilla, bench…" autofocus>
-    <div id="exdbOut" class="stack mt-2.5"><div class="tiny dim">Escribí al menos 3 letras.</div></div>`);
+    <div id="exdbOut" class="stack mt-2.5"><div class="text-tiny text-dim">Escribí al menos 3 letras.</div></div>`);
   const inp=$('#exdbQ');
   let t=null;
   inp.addEventListener('input',()=>{ clearTimeout(t); t=setTimeout(()=>runExdbSearch(inp.value),250); });
@@ -632,17 +632,17 @@ function sheetExDbSearch(mode?, ctx?){
 async function runExdbSearch(q){
   const out=$('#exdbOut'); if(!out) return;
   q=q.trim();
-  if(q.length<3){ out.innerHTML='<div class="tiny dim">Escribí al menos 3 letras.</div>'; return; }
-  out.innerHTML='<div class="tiny dim">Buscando…</div>';
+  if(q.length<3){ out.innerHTML='<div class="text-tiny text-dim">Escribí al menos 3 letras.</div>'; return; }
+  out.innerHTML='<div class="text-tiny text-dim">Buscando…</div>';
   let db;
   try{ db=await exdbEnsure(); }catch(e){ out.innerHTML='<div class="warn">No se pudo descargar la base (¿sin internet?). Probá de nuevo con wifi.</div>'; return; }
   const full=noAccent(q).replace(/[^a-z0-9]+/g,' ').trim();
   const tokens=exdbTokens(q);
-  if(!tokens.length){ out.innerHTML='<div class="tiny dim">Escribí al menos 3 letras.</div>'; return; }
+  if(!tokens.length){ out.innerHTML='<div class="text-tiny text-dim">Escribí al menos 3 letras.</div>'; return; }
   const hits=db.map(e=>({e,sc:exdbMatch(e,tokens,full)})).filter(x=>x.sc>=0)
     .sort((a,b)=>b.sc-a.sc||a.e.name.length-b.e.name.length).slice(0,20).map(x=>x.e);
   if(!hits.length){
-    out.innerHTML=`<div class="tiny dim">Nada con ese término en la base pública. Probá con otra palabra (por músculo o equipo también sirve), o creá el ejercicio a mano con tus propios pasos.</div>
+    out.innerHTML=`<div class="text-tiny text-dim">Nada con ese término en la base pública. Probá con otra palabra (por músculo o equipo también sirve), o creá el ejercicio a mano con tus propios pasos.</div>
       <button class="btn w-full mt-2.5" data-act="x-new">+ Crear el ejercicio a mano</button>`;
     return;
   }
@@ -651,7 +651,7 @@ async function runExdbSearch(q){
     const meta=[(e.muscles||[]).join(', '),e.equipment].filter(Boolean).join(' · ')||'—';
     return `<div class="li cursor-pointer" data-act="exdb-pick" data-id="${esc(e.id)}">
     ${e.images[0]?`<img class="w-13 h-13 object-cover rounded-lg flex-none" src="${esc(e.images[0])}" loading="lazy" onerror="this.style.display='none'">`:''}
-    <div class="flex-1 min-w-0"><div class="h3 trunc">${esc(e.name)}</div><div class="tiny dim">${esc(meta)}</div></div>
+    <div class="flex-1 min-w-0"><div class="h3 truncate">${esc(e.name)}</div><div class="text-tiny text-dim">${esc(meta)}</div></div>
     ${got?'<span class="chip ok">En tu biblioteca</span>':''}
   </div>`;}).join('');
 }
@@ -742,12 +742,12 @@ function sheetSwapScope(en, e){
   const it=routineItemForEntry(en);
   const rt=it?routineById(state.active.routineId):null;
   openSheet(`<div class="h2">Reemplazar por ${esc(e.name)}</div>
-    <div class="tiny dim mt-1 mx-0 mb-2.5">Se mantienen series, reps, RIR y descanso.</div>
+    <div class="text-tiny text-dim mt-1 mx-0 mb-2.5">Se mantienen series, reps, RIR y descanso.</div>
     ${done?`<div class="note">Ya marcaste ${done}${done>1?' series hechas':' serie hecha'} en este ejercicio: al reemplazarlo se borran esos números. El objetivo se mantiene.</div>`:''}
     <button class="btn w-full primary mt-2.5" data-act="swap-today" data-e="${esc(en.id)}">Solo por hoy</button>
     ${rt?`<button class="btn w-full mt-2" data-act="swap-forever" data-e="${esc(en.id)}">Para siempre (actualizar la rutina)</button>
-      <div class="tiny dim mt-1.5">"Para siempre" además deja el cambio hecho en <b>${esc(rt.name)}</b> para las próximas veces.</div>`
-    :`<div class="tiny dim mt-2">Esta es una sesión libre: no hay rutina que actualizar.</div>`}`);
+      <div class="text-tiny text-dim mt-1.5">"Para siempre" además deja el cambio hecho en <b>${esc(rt.name)}</b> para las próximas veces.</div>`
+    :`<div class="text-tiny text-dim mt-2">Esta es una sesión libre: no hay rutina que actualizar.</div>`}`);
 }
 
 /* =========================================================
@@ -787,8 +787,8 @@ function viewTrain(){
     return `<div class="card cursor-pointer" data-act="start" data-id="${r.id}">
       <div class="between"><div class="flex-1 min-w-0">
         <div class="h2">${esc(r.name)}</div>
-        <div class="small dim trunc">${esc(r.subtitle||'')}</div>
-        <div class="row mt-2 gap-1.5 flex-wrap">
+        <div class="text-small text-dim truncate">${esc(r.subtitle||'')}</div>
+        <div class="flex items-center mt-2 gap-1.5 flex-wrap">
           <span class="chip">${r.items.length} ejercicios</span>
           <span class="chip">${r.items.reduce((a,i)=>a+i.sets,0)} series</span>
           <span class="chip">${esc(ago)}</span>
@@ -800,14 +800,14 @@ function viewTrain(){
   const last7=state.sessions.filter(s=>s.endedAt&&s.date>=new Date(Date.now()-7*864e5).toISOString().slice(0,10)).length;
   return header('Bitácora','Entrenar',`<button class="btn sm ghost" data-act="quick">Sesión libre</button>`)+storageWarn()+`<div class="wrap">
     <div class="card bg-p2">
-      <div class="row gap-4">
-        <div><div class="eyebrow">Últimos 7 días</div><div class="mono text-h1 font-extrabold">${last7}<span class="dim text-ui"> sesiones</span></div></div>
+      <div class="flex items-center gap-4">
+        <div><div class="eyebrow">Últimos 7 días</div><div class="mono text-h1 font-extrabold">${last7}<span class="text-dim text-ui"> sesiones</span></div></div>
         <div><div class="eyebrow">Series hechas</div><div class="mono text-h1 font-extrabold">${totalSets}</div></div>
       </div>
     </div>
     <div class="eyebrow mt-[18px] mx-0 mb-1">Elegí la sesión de hoy</div>
     ${rs}
-    <div class="card flat"><div class="small dim">Regla del plan: no hagas dos días de pierna seguidos y respetá al menos 1 día de descanso cada 3 sesiones.</div></div>
+    <div class="card bg-transparent border-dashed"><div class="text-small text-dim">Regla del plan: no hagas dos días de pierna seguidos y respetá al menos 1 día de descanso cada 3 sesiones.</div></div>
   </div>`;
 }
 
@@ -828,7 +828,7 @@ function viewSession(){
     <button class="btn w-full mt-3" data-act="add-ex">+ Agregar ejercicio a esta sesión</button>
     <label class="f"><span class="eyebrow">Notas de la sesión</span>
       <textarea data-act="s-note" placeholder="Cómo te sentiste, molestias, qué ajustar la próxima…">${esc(s.notes||'')}</textarea></label>
-    <div class="grid2 mt-3 mx-0 mb-7">
+    <div class="grid grid-cols-2 gap-2.5 mt-3 mx-0 mb-7">
       <button class="btn danger" data-act="discard">Descartar</button>
       <button class="btn primary" data-act="finish">Terminar sesión</button>
     </div>
@@ -860,14 +860,14 @@ function entryCard(en,idx,s){
       <div class="exnum ${t.ss?'ss':''}">${t.ss?t.ss:idx+1}</div>
       <div class="flex-1 min-w-0 cursor-pointer" data-act="guide" data-id="${en.exerciseId}">
         <div class="h3">${esc(ex?ex.name:'(borrado)')}</div>
-        <div class="tiny dim">${esc(ex?ex.group:'')} · objetivo ${t.repsMin||''}-${t.repsMax||''} reps · RIR ${esc(t.rir||'')} · ${t.rest||90}s ${t.ss?' · superserie '+t.ss:''}</div>
+        <div class="text-tiny text-dim">${esc(ex?ex.group:'')} · objetivo ${t.repsMin||''}-${t.repsMax||''} reps · RIR ${esc(t.rir||'')} · ${t.rest||90}s ${t.ss?' · superserie '+t.ss:''}</div>
       </div>
       <button class="btn icon sm" data-act="entry-menu" data-e="${en.id}">⋯</button>
     </div>
     <div class="setgrid"><div></div><div class="lbl">kg</div><div class="lbl">reps</div><div class="lbl">rir</div><div></div></div>
     ${rows}
     <div class="prevline">${esc(prevTxt)}</div>
-    <div class="row mt-[9px] gap-2 flex-wrap">
+    <div class="flex items-center mt-[9px] gap-2 flex-wrap">
       <button class="btn sm" data-act="addset" data-e="${en.id}">+ Serie</button>
       <button class="btn sm" data-act="delset" data-e="${en.id}">− Serie</button>
       <button class="btn sm ghost" data-act="rest" data-e="${en.id}">⏱ ${t.rest||90}s</button>
@@ -885,16 +885,16 @@ function viewRoutines(){
     <div class="between">
       <div class="flex-1 min-w-0 cursor-pointer" data-act="r-edit" data-id="${r.id}">
         <div class="h2">${esc(r.name)}</div>
-        <div class="small dim">${esc(r.subtitle||'')}</div>
+        <div class="text-small text-dim">${esc(r.subtitle||'')}</div>
       </div>
       <button class="btn sm" data-act="r-edit" data-id="${r.id}">Editar</button>
     </div>
-    <hr class="sep">
-    ${r.items.map((it,i)=>`<div class="row tiny py-[3px] px-0">
-      <span class="mono dim w-5">${it.ss?it.ss:i+1}</span>
-      <span class="flex-1 min-w-0 trunc">${esc(exName(it.exerciseId))}</span>
-      <span class="mono dim">${it.sets}×${it.repsMin}-${it.repsMax}</span></div>`).join('')}
-    <div class="row mt-2.5 gap-2">
+    <hr class="border-t border-line my-3">
+    ${r.items.map((it,i)=>`<div class="flex items-center gap-2.5 text-tiny py-[3px] px-0">
+      <span class="mono text-dim w-5">${it.ss?it.ss:i+1}</span>
+      <span class="flex-1 min-w-0 truncate">${esc(exName(it.exerciseId))}</span>
+      <span class="mono text-dim">${it.sets}×${it.repsMin}-${it.repsMax}</span></div>`).join('')}
+    <div class="flex items-center mt-2.5 gap-2">
       <button class="btn sm ghost" data-act="r-dup" data-id="${r.id}">Duplicar</button>
       <button class="btn sm ghost danger" data-act="r-del" data-id="${r.id}">Borrar</button>
       <div class="flex-1 min-w-0"></div>
@@ -902,26 +902,26 @@ function viewRoutines(){
     </div>
   </div>`).join('');
   return header('Tus sesiones','Rutinas',`<button class="btn sm primary" data-act="r-new">+ Nueva</button>`)+`<div class="wrap">${list||'<div class="empty">Todavía no hay rutinas. Creá la primera.</div>'}
-    <div class="card flat mb-7"><div class="small dim">Mantené los mismos ejercicios 6-10 semanas. Cambiar todo cada semana hace imposible medir el progreso.</div></div></div>`;
+    <div class="card bg-transparent border-dashed mb-7"><div class="text-small text-dim">Mantené los mismos ejercicios 6-10 semanas. Cambiar todo cada semana hace imposible medir el progreso.</div></div></div>`;
 }
 function sheetRoutine(id){
   const r=id?routineById(id):{id:'',name:'',subtitle:'',items:[]};
   const opts=exOptions();
   const items=r.items.map((it,i)=>`<div class="card p-[11px]" data-ri="${i}">
-    <div class="row gap-[7px]">
-      <span class="mono dim tiny w-4">${i+1}</span>
+    <div class="flex items-center gap-[7px]">
+      <span class="mono text-dim text-tiny w-4">${i+1}</span>
       <select class="flex-1 min-w-0" data-k="exerciseId">${opts(it.exerciseId)}</select>
       <button class="btn icon sm" data-act="ri-up" data-i="${i}">↑</button>
       <button class="btn icon sm" data-act="ri-down" data-i="${i}">↓</button>
       <button class="btn icon sm" data-act="ri-replace" data-i="${i}" title="Reemplazar ejercicio">⇄</button>
       <button class="btn icon sm danger" data-act="ri-del" data-i="${i}">✕</button>
     </div>
-    <div class="grid3 mt-2">
+    <div class="grid grid-cols-3 gap-2.5 mt-2">
       <label class="f m-0"><span class="eyebrow">Series</span><input type="text" inputmode="numeric" data-k="sets" value="${it.sets}"></label>
       <label class="f m-0"><span class="eyebrow">Reps mín</span><input type="text" inputmode="numeric" data-k="repsMin" value="${it.repsMin}"></label>
       <label class="f m-0"><span class="eyebrow">Reps máx</span><input type="text" inputmode="numeric" data-k="repsMax" value="${it.repsMax}"></label>
     </div>
-    <div class="grid3 mt-2">
+    <div class="grid grid-cols-3 gap-2.5 mt-2">
       <label class="f m-0"><span class="eyebrow">RIR</span><input type="text" data-k="rir" value="${esc(it.rir)}"></label>
       <label class="f m-0"><span class="eyebrow">Descanso s</span><input type="text" inputmode="numeric" data-k="rest" value="${it.rest}"></label>
       <label class="f m-0"><span class="eyebrow">Superserie</span><input type="text" data-k="ss" value="${esc(it.ss||'')}" placeholder="A, B…"></label>
@@ -932,8 +932,8 @@ function sheetRoutine(id){
     <label class="f"><span class="eyebrow">Nombre</span><input type="text" data-k="name" value="${esc(r.name)}" placeholder="F · Full body"></label>
     <label class="f"><span class="eyebrow">Subtítulo</span><input type="text" data-k="subtitle" value="${esc(r.subtitle||'')}" placeholder="Músculos que cubre"></label>
     <div class="eyebrow mt-4 mx-0 mb-1.5">Ejercicios</div>
-    <div id="ritems">${items||'<div class="empty small">Sin ejercicios todavía.</div>'}</div>
-    <div class="grid2 mt-2">
+    <div id="ritems">${items||'<div class="empty text-small">Sin ejercicios todavía.</div>'}</div>
+    <div class="grid grid-cols-2 gap-2.5 mt-2">
       <button class="btn" data-act="ri-add">+ De mi biblioteca</button>
       <button class="btn" data-act="ri-add-db">🔎 Buscar más (873)</button>
     </div>
@@ -953,8 +953,8 @@ function viewExercises(){
   const blocks=Object.keys(byG).sort().map(g=>`<div class="eyebrow mt-[18px] mx-0 mb-0.5">${esc(g)} · ${byG[g].length}</div>
     <div class="card">${byG[g].map(e=>`<div class="li">
       <div class="flex-1 min-w-0 cursor-pointer" data-act="guide" data-id="${e.id}">
-        <div class="h3 trunc">${esc(e.name)}</div>
-        <div class="tiny dim">${e.cues.length} pasos${e.custom?' · propio':''}</div>
+        <div class="h3 truncate">${esc(e.name)}</div>
+        <div class="text-tiny text-dim">${e.cues.length} pasos${e.custom?' · propio':''}</div>
       </div>
       <button class="btn icon sm ghost" data-act="x-replace-db" data-id="${e.id}" title="Reemplazar por otro de la base pública">⇄</button>
       <button class="btn sm ghost" data-act="x-edit" data-id="${e.id}">Editar</button>
@@ -968,10 +968,10 @@ function viewExercises(){
 function sheetGuide(id){
   const e=exById(id); if(!e) return;
   const hist=exerciseHistory(id).slice(0,5);
-  const photos=(e.images&&e.images.length)?`<div class="row gap-2 mt-3 overflow-x-auto" data-photos='${esc(JSON.stringify(e.images))}'>
+  const photos=(e.images&&e.images.length)?`<div class="flex items-center gap-2 mt-3 overflow-x-auto" data-photos='${esc(JSON.stringify(e.images))}'>
     ${e.images.map((u,i)=>`<img class="h-[150px] rounded-ctl border border-line flex-none cursor-zoom-in" src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" onerror="this.style.display='none'">`).join('')}
     </div>${e.photoNote?`<div class="warn mt-2">${esc(e.photoNote)}</div>`:''}
-    <div class="tiny dim mt-[5px]">Fotos: Free Exercise DB (dominio público)</div>`:'';
+    <div class="text-tiny text-dim mt-[5px]">Fotos: Free Exercise DB (dominio público)</div>`:'';
   openSheet(`<div class="between"><div class="flex-1 min-w-0"><div class="eyebrow">${esc(e.group)}</div><div class="h2">${esc(e.name)}</div></div>
     <button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
     ${photos}
@@ -987,7 +987,7 @@ function sheetGuide(id){
 function sheetExercise(id, prefill?){
   const base = id?exById(id):{id:'',name:'',group:'Pecho',cues:[],err:'',tip:'',images:[]};
   const e = prefill ? Object.assign({}, base, prefill, {id: base.id}) : base;
-  const photos=(e.images&&e.images.length)?`<div class="row gap-2 my-2 mx-0 overflow-x-auto" data-photos='${esc(JSON.stringify(e.images))}'>
+  const photos=(e.images&&e.images.length)?`<div class="flex items-center gap-2 my-2 mx-0 overflow-x-auto" data-photos='${esc(JSON.stringify(e.images))}'>
     ${e.images.map((u,i)=>`<img class="h-20 rounded-lg border border-line flex-none cursor-zoom-in" src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" onerror="this.style.display='none'">`).join('')}
     </div>`:'';
   openSheet(`<div class="between"><div class="h2">${id?'Editar ejercicio':'Nuevo ejercicio'}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
@@ -1036,7 +1036,7 @@ function exerciseHistory(exId){
 }
 function viewProgress(){
   const tab=state.ui.ptab||'ex';
-  const tabs=`<div class="row gap-2 mt-2 mx-0 mb-0.5">
+  const tabs=`<div class="flex items-center gap-2 mt-2 mx-0 mb-0.5">
     ${[['ex','Ejercicio'],['vol','Volumen'],['hist','Historial'],['bw','Peso corporal']].map(([k,l])=>
       `<button class="btn sm ${tab===k?'primary':'ghost'}" data-act="ptab" data-t="${k}">${l}</button>`).join('')}</div>`;
   let body='';
@@ -1050,14 +1050,14 @@ function progExercise(){
   const id=state.ui.progressEx||state.exercises[0].id;
   const h=exerciseHistory(id);
   const opts=exOptions()(id);
-  const chart=h.length>1?lineChart(h.map(x=>({x:x.date,y:x.e}))):'<div class="empty small">Registrá al menos dos sesiones con este ejercicio para ver la curva.</div>';
+  const chart=h.length>1?lineChart(h.map(x=>({x:x.date,y:x.e}))):'<div class="empty text-small">Registrá al menos dos sesiones con este ejercicio para ver la curva.</div>';
   const rows=h.slice().reverse().map(x=>`<tr><td>${dnice(x.date)}</td><td>${fmt(x.bw)}×${x.br}</td><td class="n">${fmt(Math.round(x.e))}</td><td class="n">${fmt(Math.round(x.vol))}</td></tr>`).join('');
   const first=h[0],last=h[h.length-1];
   const delta=(first&&last&&h.length>1)?((last.e-first.e)/first.e*100):null;
   return `<label class="f"><span class="eyebrow">Ejercicio</span><select data-act="pex">${opts}</select></label>
     <div class="card">
       <div class="between mb-1.5">
-        <div><div class="eyebrow">1RM estimado</div><div class="mono text-[24px] font-extrabold">${last?fmt(Math.round(last.e)):'—'}<span class="dim text-small"> kg</span></div></div>
+        <div><div class="eyebrow">1RM estimado</div><div class="mono text-[24px] font-extrabold">${last?fmt(Math.round(last.e)):'—'}<span class="text-dim text-small"> kg</span></div></div>
         ${delta!=null?`<div class="text-right"><div class="eyebrow">Desde el inicio</div><div class="mono text-[24px] font-extrabold ${delta>=0?'text-ok':'text-hot'}">${delta>=0?'+':''}${fmt(Math.round(delta*10)/10)}%</div></div>`:''}
       </div>
       ${chart}
@@ -1087,15 +1087,15 @@ function progVolume(){
     const cls=n<lo?'low':n>hi?'hi':'';
     return `<div class="py-[9px] px-0 border-b border-line">
       <div class="between mb-[5px]">
-        <div class="small font-bold">${esc(g)}</div>
-        <div class="mono tiny ${n<lo?'dim':''}">${n} <span class="dim">/ ${lo}-${hi}</span></div>
+        <div class="text-small font-bold">${esc(g)}</div>
+        <div class="mono text-tiny ${n<lo?'text-dim':''}">${n} <span class="text-dim">/ ${lo}-${hi}</span></div>
       </div>
       <div class="bar"><i class="${cls}" style="width:${pct}%"></i><span class="zone" style="left:${lp}%;width:${hp-lp}%"></span></div>
     </div>`;
   }).join('');
   const hist=weekBars();
   return `<div class="card"><div class="eyebrow">Series efectivas · últimos 7 días</div>
-    <div class="tiny dim mt-0.5 mx-0 mb-2">Las líneas marcan el rango óptimo del plan. Solo cuentan las series que marcaste como hechas.</div>
+    <div class="text-tiny text-dim mt-0.5 mx-0 mb-2">Las líneas marcan el rango óptimo del plan. Solo cuentan las series que marcaste como hechas.</div>
     ${rows}</div>
     <div class="card"><div class="eyebrow">Volumen por semana (kg totales)</div>${hist}</div>`;
 }
@@ -1109,12 +1109,12 @@ function weekBars(){
     weeks.push({label:dnice(b),v,n});
   }
   const mx=Math.max(1,...weeks.map(w=>w.v));
-  if(mx<=1) return '<div class="empty small">Sin sesiones registradas todavía.</div>';
-  return `<div class="row items-end gap-[5px] h-[110px] mt-2.5">
+  if(mx<=1) return '<div class="empty text-small">Sin sesiones registradas todavía.</div>';
+  return `<div class="flex items-end gap-[5px] h-[110px] mt-2.5">
     ${weeks.map(w=>`<div class="flex-1 min-w-0 text-center">
       <div class="rounded-t-[4px] min-h-[3px] ${w.v?'bg-sig':'bg-p3'}" style="height:${Math.round(w.v/mx*84)}px"></div>
-      <div class="tiny dim mono mt-1">${w.label}</div></div>`).join('')}</div>
-    <div class="tiny dim mt-1.5">Cada barra = una semana que termina en esa fecha.</div>`;
+      <div class="text-tiny text-dim mono mt-1">${w.label}</div></div>`).join('')}</div>
+    <div class="text-tiny text-dim mt-1.5">Cada barra = una semana que termina en esa fecha.</div>`;
 }
 function progHistory(){
   const ss=doneSessions();
@@ -1123,7 +1123,7 @@ function progHistory(){
     <div class="between">
       <div class="flex-1 min-w-0 cursor-pointer" data-act="sess-view" data-id="${s.id}">
         <div class="h3">${esc(s.name)}</div>
-        <div class="tiny dim">${dlong(s.date)} · ${r.sets} series · ${fmt(Math.round(r.v))} kg${s.dur?' · '+s.dur:''}</div>
+        <div class="text-tiny text-dim">${dlong(s.date)} · ${r.sets} series · ${fmt(Math.round(r.v))} kg${s.dur?' · '+s.dur:''}</div>
       </div>
       <button class="btn sm ghost" data-act="sess-view" data-id="${s.id}">Ver</button>
     </div></div>`;}).join('');
@@ -1133,10 +1133,10 @@ function sheetSession(id){
   const r=sessionVolume(s);
   openSheet(`<div class="between"><div class="flex-1 min-w-0"><div class="eyebrow">${dlong(s.date)}</div><div class="h2">${esc(s.name)}</div></div>
     <button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
-    <div class="row gap-2 my-2.5 mx-0"><span class="chip">${r.sets} series</span><span class="chip">${fmt(Math.round(r.v))} kg</span>${s.dur?`<span class="chip">${esc(s.dur)}</span>`:''}</div>
+    <div class="flex items-center gap-2 my-2.5 mx-0"><span class="chip">${r.sets} series</span><span class="chip">${fmt(Math.round(r.v))} kg</span>${s.dur?`<span class="chip">${esc(s.dur)}</span>`:''}</div>
     ${s.entries.map(en=>`<div class="card p-[11px]">
       <div class="h3">${esc(exName(en.exerciseId))}</div>
-      <div class="mono small dim mt-1">${en.sets.filter(x=>x.done).map(x=>`${fmt(num(x.w))}×${x.r}${x.rir!==''?' (RIR '+x.rir+')':''}`).join(' · ')||'sin series'}</div>
+      <div class="mono text-small text-dim mt-1">${en.sets.filter(x=>x.done).map(x=>`${fmt(num(x.w))}×${x.r}${x.rir!==''?' (RIR '+x.rir+')':''}`).join(' · ')||'sin series'}</div>
     </div>`).join('')}
     ${s.notes?`<div class="note">${esc(s.notes)}</div>`:''}
     <button class="btn w-full ghost mt-3" data-act="sess-repeat" data-id="${s.id}">Repetir esta sesión</button>
@@ -1159,18 +1159,18 @@ function progBW(){
   }
   const chart=b.length>1?lineChart(b.slice().reverse().map(x=>({x:x.date,y:x.kg}))):'';
   return `<div class="card">
-      <div class="row gap-2">
+      <div class="flex items-center gap-2">
         <input class="flex-1" type="text" inputmode="decimal" id="bwkg" placeholder="kg de hoy">
         <button class="btn primary" data-act="bw-add">Anotar</button>
       </div>
-      <div class="row gap-4 mt-3">
+      <div class="flex items-center gap-4 mt-3">
         <div><div class="eyebrow">Promedio 7 días</div><div class="mono text-[24px] font-extrabold">${a1!=null?fmt(Math.round(a1*10)/10):'—'}</div></div>
         <div><div class="eyebrow">vs semana previa</div><div class="mono text-[24px] font-extrabold ${diff==null?'text-dim':Math.abs(diff)<=0.3?'text-ok':'text-sig'}">${diff!=null?(diff>0?'+':'')+fmt(Math.round(diff*10)/10):'—'}</div></div>
       </div>
       ${chart}
       <div class="note mt-2.5">${esc(verdict)}</div>
     </div>
-    ${b.length?`<table class="t"><tr><th>Fecha</th><th class="n">kg</th><th></th></tr>${b.map(x=>`<tr><td>${dnice(x.date)}</td><td class="n">${fmt(x.kg)}</td><td class="n"><button class="btn sm ghost danger" data-act="bw-del" data-d="${x.date}">✕</button></td></tr>`).join('')}</table>`:'<div class="empty small">Sin pesadas cargadas.</div>'}`;
+    ${b.length?`<table class="t"><tr><th>Fecha</th><th class="n">kg</th><th></th></tr>${b.map(x=>`<tr><td>${dnice(x.date)}</td><td class="n">${fmt(x.kg)}</td><td class="n"><button class="btn sm ghost danger" data-act="bw-del" data-d="${x.date}">✕</button></td></tr>`).join('')}</table>`:'<div class="empty text-small">Sin pesadas cargadas.</div>'}`;
 }
 
 /* ---------------- AJUSTES ---------------- */
@@ -1181,24 +1181,24 @@ function viewSettings(){
     ${accountCard()}
     <div class="card">
       <div class="eyebrow">Apariencia</div>
-      <div class="row gap-2 mt-2.5 mx-0 mb-3.5">
+      <div class="flex items-center gap-2 mt-2.5 mx-0 mb-3.5">
         <button class="btn ${s.theme!=='light'?'primary':''} flex-1" data-act="theme" data-v="dark">Oscuro</button>
         <button class="btn ${s.theme==='light'?'primary':''} flex-1" data-act="theme" data-v="light">Claro</button>
       </div>
       <div class="eyebrow mb-2">Color</div>
-      <div class="row gap-2.5 flex-wrap">
+      <div class="flex items-center gap-2.5 flex-wrap">
         ${ACCENTS.map(([v,label])=>`<button class="w-[38px] h-[38px] rounded-pill p-0 flex-none border-2 ${s.accent===v?'border-tx':'border-transparent'}" data-act="accent" data-v="${v}" title="${label}" style="background:${ACCENT_HEX[v]}"></button>`).join('')}
       </div>
     </div>
     <div class="card">
       <div class="eyebrow">Entrenamiento</div>
-      <div class="switch"><div><div class="h3">Arrancar el descanso solo</div><div class="tiny dim">Al marcar una serie como hecha</div></div>
+      <div class="switch"><div><div class="h3">Arrancar el descanso solo</div><div class="text-tiny text-dim">Al marcar una serie como hecha</div></div>
         <div class="tog ${s.autoTimer?'on':''}" data-act="tog" data-k="autoTimer"><i></i></div></div>
-      <div class="switch"><div><div class="h3">Sonidos del descanso</div><div class="tiny dim">Al arrancar, cuando está por terminar y al terminar</div></div>
+      <div class="switch"><div><div class="h3">Sonidos del descanso</div><div class="text-tiny text-dim">Al arrancar, cuando está por terminar y al terminar</div></div>
         <div class="tog ${s.sound?'on':''}" data-act="tog" data-k="sound"><i></i></div></div>
-      <div class="switch"><div><div class="h3">Vibración</div><div class="tiny dim">Si el dispositivo la soporta</div></div>
+      <div class="switch"><div><div class="h3">Vibración</div><div class="text-tiny text-dim">Si el dispositivo la soporta</div></div>
         <div class="tog ${s.vibrate?'on':''}" data-act="tog" data-k="vibrate"><i></i></div></div>
-      <div class="switch border-b-0"><div><div class="h3">Pantalla siempre encendida</div><div class="tiny dim">Mientras dura la sesión</div></div>
+      <div class="switch border-b-0"><div><div class="h3">Pantalla siempre encendida</div><div class="text-tiny text-dim">Mientras dura la sesión</div></div>
         <div class="tog ${s.wake?'on':''}" data-act="tog" data-k="wake"><i></i></div></div>
       <label class="f"><span class="eyebrow">Descanso por defecto (segundos)</span>
         <input type="text" inputmode="numeric" data-act="set-rest" value="${s.rest}"></label>
@@ -1206,26 +1206,26 @@ function viewSettings(){
 
     <div class="card">
       <div class="eyebrow">Calculadora de discos</div>
-      <div class="tiny dim mt-0.5 mx-0 mb-2">Cuántos discos por lado para el peso total que querés.</div>
-      <div class="row gap-2">
+      <div class="text-tiny text-dim mt-0.5 mx-0 mb-2">Cuántos discos por lado para el peso total que querés.</div>
+      <div class="flex items-center gap-2">
         <input class="flex-1" type="text" inputmode="decimal" id="plateW" placeholder="peso total">
         <input class="w-22" type="text" inputmode="decimal" id="plateBar" value="${s.bar}" title="barra">
         <button class="btn primary" data-act="plate">Calcular</button>
       </div>
-      <div id="plateOut" class="mono small mt-2.5 text-sig"></div>
+      <div id="plateOut" class="mono text-small mt-2.5 text-sig"></div>
     </div>
 
     <div class="card">
       <div class="eyebrow">Privacidad</div>
-      <div class="small dim mt-1 mx-0 mb-2.5">Un PIN para abrir la app en este dispositivo. Se guarda solo acá, no viaja a la nube ni a otros dispositivos.</div>
+      <div class="text-small text-dim mt-1 mx-0 mb-2.5">Un PIN para abrir la app en este dispositivo. Se guarda solo acá, no viaja a la nube ni a otros dispositivos.</div>
       ${pinIsSet()
-        ? `<div class="grid2"><button class="btn" data-act="pin-change">Cambiar PIN</button><button class="btn ghost danger" data-act="pin-disable">Desactivar</button></div>`
+        ? `<div class="grid grid-cols-2 gap-2.5"><button class="btn" data-act="pin-change">Cambiar PIN</button><button class="btn ghost danger" data-act="pin-disable">Desactivar</button></div>`
         : `<button class="btn w-full primary" data-act="pin-enable">Activar PIN</button>`}
     </div>
     <div class="card">
       <div class="eyebrow">Copia de seguridad</div>
-      <div class="tiny dim mt-0.5 mx-0 mb-2.5">Los datos viven solo en este navegador. Exportá de vez en cuando y guardate el archivo.</div>
-      <div class="grid2">
+      <div class="text-tiny text-dim mt-0.5 mx-0 mb-2.5">Los datos viven solo en este navegador. Exportá de vez en cuando y guardate el archivo.</div>
+      <div class="grid grid-cols-2 gap-2.5">
         <button class="btn" data-act="export">Exportar .json</button>
         <button class="btn" data-act="import">Importar .json</button>
       </div>
@@ -1235,10 +1235,10 @@ function viewSettings(){
 
     <div class="card">
       <div class="eyebrow">Datos</div>
-      <div class="row gap-3 mt-2">
-        <div><div class="mono text-[22px] font-extrabold">${state.sessions.filter(x=>x.endedAt).length}</div><div class="tiny dim">sesiones</div></div>
-        <div><div class="mono text-[22px] font-extrabold">${state.exercises.length}</div><div class="tiny dim">ejercicios</div></div>
-        <div><div class="mono text-[22px] font-extrabold">${state.routines.length}</div><div class="tiny dim">rutinas</div></div>
+      <div class="flex items-center gap-3 mt-2">
+        <div><div class="mono text-[22px] font-extrabold">${state.sessions.filter(x=>x.endedAt).length}</div><div class="text-tiny text-dim">sesiones</div></div>
+        <div><div class="mono text-[22px] font-extrabold">${state.exercises.length}</div><div class="text-tiny text-dim">ejercicios</div></div>
+        <div><div class="mono text-[22px] font-extrabold">${state.routines.length}</div><div class="text-tiny text-dim">rutinas</div></div>
       </div>
       <button class="btn w-full ghost mt-3.5" data-act="tutorial">Ver el tutorial</button>
       <button class="btn w-full ghost mt-2" data-act="update">Buscar actualización de la app</button>
@@ -1246,8 +1246,8 @@ function viewSettings(){
       <button class="btn w-full danger ghost mt-2" data-act="wipe">Borrar todo</button>
     </div>
 
-    <div class="card flat mb-7">
-      <div class="small dim">Bitácora · basada en tu plan Push-Pull-Legs + Torso-Pierna. Guía general de entrenamiento, no consejo médico.
+    <div class="card bg-transparent border-dashed mb-7">
+      <div class="text-small text-dim">Bitácora · basada en tu plan Push-Pull-Legs + Torso-Pierna. Guía general de entrenamiento, no consejo médico.
       Doble progresión: cuando llegás al techo de repeticiones en todas las series, subí 2,5 kg arriba / 5 kg abajo y volvé al piso del rango.</div>
     </div>
   </div>`;
@@ -1269,13 +1269,13 @@ function accountCard(){
   if(S.status==='unconfigured'){
     return `<div class="card">
       <div class="eyebrow">Cuenta</div>
-      <div class="small dim mt-1">La sincronización está apagada porque falta cargar las claves de Firebase en <span class="mono">config.js</span>. La app funciona igual: los datos quedan guardados en este dispositivo.</div>
+      <div class="text-small text-dim mt-1">La sincronización está apagada porque falta cargar las claves de Firebase en <span class="mono">config.js</span>. La app funciona igual: los datos quedan guardados en este dispositivo.</div>
     </div>`;
   }
   if(!S.user){
     return `<div class="card">
       <div class="between"><div class="eyebrow">Cuenta</div>${syncBadge()}</div>
-      <div class="small dim mt-1 mx-0 mb-2.5">Iniciá sesión para que tu historial se guarde en la nube y lo tengas en cualquier dispositivo.</div>
+      <div class="text-small text-dim mt-1 mx-0 mb-2.5">Iniciá sesión para que tu historial se guarde en la nube y lo tengas en cualquier dispositivo.</div>
       <button class="btn w-full primary" data-act="auth-open">Entrar o crear cuenta</button>
     </div>`;
   }
@@ -1284,9 +1284,9 @@ function accountCard(){
   return `<div class="card">
     <div class="between"><div class="eyebrow">Cuenta</div>${syncBadge()}</div>
     <div class="h3 mt-1">${esc(S.user.email||'')}</div>
-    <div class="tiny dim">${S.last?'Última sincronización: '+new Date(S.last).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'Todavía no sincronizó'}</div>
-    <div class="tiny dim">Último intercambio con la nube: ${esc(lpTxt)}</div>
-    <div class="grid2 mt-2.5">
+    <div class="text-tiny text-dim">${S.last?'Última sincronización: '+new Date(S.last).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'Todavía no sincronizó'}</div>
+    <div class="text-tiny text-dim">Último intercambio con la nube: ${esc(lpTxt)}</div>
+    <div class="grid grid-cols-2 gap-2.5 mt-2.5">
       <button class="btn" data-act="sync-now">Sincronizar ahora</button>
       <button class="btn ghost" data-act="auth-out">Cerrar sesión</button>
     </div>
@@ -1301,12 +1301,12 @@ function sheetAuth(mode){
     <button class="btn w-full primary mt-3.5" data-act="${reg?'auth-signup':'auth-signin'}">${reg?'Crear cuenta':'Entrar'}</button>
     <button class="btn w-full ghost mt-2" data-act="auth-toggle" data-m="${reg?'in':'reg'}">${reg?'Ya tengo cuenta':'Crear una cuenta nueva'}</button>
     ${reg?'':'<button class="btn w-full ghost mt-2" data-act="auth-reset">Olvidé la contraseña</button>'}
-    <div class="row items-center gap-2.5 my-4 mx-0"><hr class="sep flex-1 m-0"><span class="tiny dim">o</span><hr class="sep flex-1 m-0"></div>
+    <div class="flex items-center gap-2.5 my-4 mx-0"><hr class="border-t border-line my-3 flex-1 m-0"><span class="text-tiny text-dim">o</span><hr class="border-t border-line my-3 flex-1 m-0"></div>
     <button class="btn w-full" data-act="auth-google">
       <svg class="mr-0.5" width="17" height="17" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.56 2.7-3.87 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03l2.99-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97l2.99 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
       Continuar con Google
     </button>
-    <div class="tiny dim mt-3.5 mx-0 mb-1">Al entrar, lo que ya tengas en la nube se descarga y se junta con lo de este dispositivo. Nada se pisa sin avisar.</div>`);
+    <div class="text-tiny text-dim mt-3.5 mx-0 mb-1">Al entrar, lo que ya tengas en la nube se descarga y se junta con lo de este dispositivo. Nada se pisa sin avisar.</div>`);
 }
 function authErr(e){
   const c=(e&&e.code)||'';
@@ -1348,7 +1348,7 @@ function finishSession(){
   state.sessions.push(s); state.active=null; save(true); stopTimer(); void keepAwake(false); render();
   if(window.Sync) Sync.schedule(800);
   openSheet(`<div class="h2">Sesión guardada</div>
-    <div class="row gap-2 my-3 mx-0"><span class="chip">${r.sets} series</span><span class="chip">${fmt(Math.round(r.v))} kg movidos</span><span class="chip">${esc(s.dur)}</span></div>
+    <div class="flex items-center gap-2 my-3 mx-0"><span class="chip">${r.sets} series</span><span class="chip">${fmt(Math.round(r.v))} kg movidos</span><span class="chip">${esc(s.dur)}</span></div>
     ${prs.length?`<div class="eyebrow mt-2.5">Récords personales</div>${prs.map(p=>`<div class="cue"><b>★</b><span>${esc(p)}</span></div>`).join('')}`:
       `<div class="note">Sin récords hoy. La próxima vez, apuntá a una repetición más en al menos un ejercicio: eso es doble progresión.</div>`}
     <button class="btn w-full primary mt-3.5" data-act="closesheet">Listo</button>`);
@@ -1458,7 +1458,7 @@ document.addEventListener('click',(ev: any)=>{
   if(a==='add-ex'){
     openSheet(`<div class="h2">Agregar ejercicio</div>
       <label class="f"><span class="eyebrow">Ejercicio</span><select id="addExSel">${exOptions()('')}</select></label>
-      <div class="grid3"><label class="f"><span class="eyebrow">Series</span><input id="addExSets" type="text" inputmode="numeric" value="3"></label>
+      <div class="grid grid-cols-3 gap-2.5"><label class="f"><span class="eyebrow">Series</span><input id="addExSets" type="text" inputmode="numeric" value="3"></label>
       <label class="f"><span class="eyebrow">Reps</span><input id="addExReps" type="text" value="8-12"></label>
       <label class="f"><span class="eyebrow">Descanso s</span><input id="addExRest" type="text" inputmode="numeric" value="90"></label></div>
       <button class="btn w-full primary mt-3.5" data-act="add-ex-ok">Agregar</button>`);
