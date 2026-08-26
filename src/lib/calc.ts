@@ -17,7 +17,7 @@ export interface Entry {
   id?: string;
   exerciseId: string;
   sets: SetRow[];
-  target?: { rest?: number; [k: string]: unknown };
+  target?: { rest?: number };
 }
 
 export interface Session {
@@ -36,7 +36,6 @@ export interface Exercise {
   id: string;
   name: string;
   group: string;
-  [k: string]: unknown;
 }
 
 export const GROUPS = [
@@ -53,6 +52,11 @@ export const GROUPS = [
   "Aductores",
   "Core",
 ];
+
+/* The four interfaces above are deliberately looser than the entities in
+   src/types.ts: this module is pure and states only the fields it reads, so
+   the same maths works on a half-built fixture in a test and on a real
+   session from the store. The canonical types are assignable to them. */
 
 /** Reads a number the way the inputs write it: "72,5" and "72.5" both work. */
 export const num = (v: unknown): number | null => {
