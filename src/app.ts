@@ -2,15 +2,16 @@
    BITÁCORA — registro de entrenamiento offline
    Sin internet. Datos en este dispositivo.
 
-   Fase 3 en curso: este archivo ya no es dueño del estado, de
-   las semillas, ni de los helpers. Le quedan las vistas, los
-   features y el despachador de eventos, que salen en los PRs
+   Fase 3 en curso. Ya salieron el estado, los datos, los
+   helpers y las vistas. Le quedan los features (temporizador,
+   PIN, visor de fotos, base pública, tour), las acciones de la
+   sesión y el despachador de eventos, que salen en los dos PRs
    siguientes.
    ========================================================= */
 import "./app.css";
 import "./sync";
 import { registerServiceWorker, checkForUpdate } from "./pwa";
-import { GROUPS, clamp, num, e1rm } from "./lib/calc";
+import { clamp, e1rm, num } from "./lib/calc";
 import {
   newTimer,
   restoreTimer as restoredTimerState,
@@ -18,24 +19,27 @@ import {
   type TimerState,
 } from "./lib/timer";
 import { $, $$, dl, esc, uid } from "./lib/dom";
-import { daysAgo, dlong, dnice, fmt, today } from "./lib/format";
-import { ACCENT_HEX, RANGES } from "./data/groups";
-import { DEFAULT_SETTINGS, STORAGE_OK, save, seedState, setState, state } from "./state/store";
+import { fmt, today } from "./lib/format";
+import { pinCheck, pinClear, pinIsSet, pinSet } from "./features/pin";
+import { DEFAULT_SETTINGS, save, seedState, setState, state } from "./state/store";
 import {
   bestE1RM,
   doneSessions,
   entryOf,
   exById,
   exName,
-  lastPerf,
   routineById,
   sessionVolume,
-  weeklySets,
 } from "./state/selectors";
 import { closeSheet, openSheet, sheetIsOpen } from "./ui/sheet";
+import { render, setView, view } from "./ui/shell";
+import { applyTheme } from "./ui/theme";
 import { toast } from "./ui/toast";
-
-let view = state.active ? "train" : "train";
+import { elapsed } from "./views/entrenar";
+import { sheetExercise, sheetGuide, exOptions } from "./views/ejercicios";
+import { sheetRoutine } from "./views/rutinas";
+import { sheetSession } from "./views/progreso";
+import { authErr, sheetAuth } from "./views/cuenta";
 
 /* ---------- temporizador ---------- */
 const T: TimerState & { int: any } = {end:0,total:0,int:null,label:'',beeped:false,warned:false};
@@ -108,14 +112,6 @@ function beep(){ tones([{f:784,t:0,d:.18},{f:784,t:.22,d:.18},{f:1046,t:.44,d:.2
 /* =========================================================
    BLOQUEO CON PIN (queda solo en este dispositivo, no se sincroniza)
    ========================================================= */
-const PIN_KEY='bitacora_pin_v1';
-function pinHash(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return String(h); }
-function pinInfo(){ try{ return JSON.parse(localStorage.getItem(PIN_KEY)||'null'); }catch(e){ return null; } }
-function pinIsSet(){ return !!pinInfo(); }
-function pinSet(code){ try{ localStorage.setItem(PIN_KEY, JSON.stringify({h:pinHash(code)})); }catch(e){} }
-function pinClear(){ try{ localStorage.removeItem(PIN_KEY); }catch(e){} }
-function pinCheck(code){ const i=pinInfo(); return !!i && i.h===pinHash(code); }
-
 let lockMode='unlock'; // unlock | setup1 | setup2 | disable
 let lockTemp='';
 function showLock(mode){
@@ -407,260 +403,6 @@ function sheetSwapScope(en, e){
     :`<div class="text-tiny text-dim mt-2">Esta es una sesión libre: no hay rutina que actualizar.</div>`}`);
 }
 
-/* =========================================================
-   VISTAS
-   ========================================================= */
-
-function applyTheme(){
-  document.documentElement.setAttribute('data-theme', state.settings.theme||'dark');
-  document.documentElement.setAttribute('data-accent', state.settings.accent||'mostaza');
-  const meta=document.querySelector('meta[name=theme-color]');
-  if(meta) meta.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||'#0E1316');
-}
-
-function render(){
-  applyTheme();
-  $$('.nb').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
-  const el=$('#app');
-  const map={train:viewTrain,routines:viewRoutines,exercises:viewExercises,progress:viewProgress,settings:viewSettings};
-  el.innerHTML=(map[view]||viewTrain)();
-  window.scrollTo({top:0});
-}
-function header(eyebrow,title,right?){
-  return `<header class="top"><div class="wrap"><div class="topbar">
-    <div class="flex-1 min-w-0"><div class="eyebrow">${esc(eyebrow)}</div><div class="h1">${esc(title)}</div></div>
-    ${right||''}</div></div></header>`;
-}
-function storageWarn(){
-  return STORAGE_OK?'':`<div class="wrap"><div class="warn mt-2.5"><b>Vista previa sin guardado.</b> Este entorno bloquea el almacenamiento local. Descargá el archivo y abrilo desde tu celular o compu: ahí sí guarda todo.</div></div>`;
-}
-
-/* ---------------- ENTRENAR ---------------- */
-function viewTrain(){
-  if(state.active) return viewSession();
-  const rs=state.routines.map(r=>{
-    const last=doneSessions().find(s=>s.routineId===r.id);
-    const ago=last?(daysAgo(last.date)===0?'hoy':daysAgo(last.date)===1?'ayer':'hace '+daysAgo(last.date)+' días'):'nunca';
-    return `<div class="card cursor-pointer" data-act="start" data-id="${r.id}">
-      <div class="between"><div class="flex-1 min-w-0">
-        <div class="h2">${esc(r.name)}</div>
-        <div class="text-small text-dim truncate">${esc(r.subtitle||'')}</div>
-        <div class="flex items-center mt-2 gap-1.5 flex-wrap">
-          <span class="chip">${r.items.length} ejercicios</span>
-          <span class="chip">${r.items.reduce((a,i)=>a+i.sets,0)} series</span>
-          <span class="chip">${esc(ago)}</span>
-        </div></div>
-        <div class="btn primary sm">Empezar</div></div></div>`;
-  }).join('');
-  const w=weeklySets(7);
-  const totalSets=Object.values(w).reduce((a,b)=>a+b,0);
-  const last7=state.sessions.filter(s=>s.endedAt&&s.date>=new Date(Date.now()-7*864e5).toISOString().slice(0,10)).length;
-  return header('Bitácora','Entrenar',`<button class="btn sm ghost" data-act="quick">Sesión libre</button>`)+storageWarn()+`<div class="wrap">
-    <div class="card bg-p2">
-      <div class="flex items-center gap-4">
-        <div><div class="eyebrow">Últimos 7 días</div><div class="mono text-h1 font-extrabold">${last7}<span class="text-dim text-ui"> sesiones</span></div></div>
-        <div><div class="eyebrow">Series hechas</div><div class="mono text-h1 font-extrabold">${totalSets}</div></div>
-      </div>
-    </div>
-    <div class="eyebrow mt-[18px] mx-0 mb-1">Elegí la sesión de hoy</div>
-    ${rs}
-    <div class="card bg-transparent border-dashed"><div class="text-small text-dim">Regla del plan: no hagas dos días de pierna seguidos y respetá al menos 1 día de descanso cada 3 sesiones.</div></div>
-  </div>`;
-}
-
-function viewSession(){
-  const s=state.active;
-  const {v,sets}=sessionVolume(s);
-  const total=s.entries.reduce((a,e)=>a+e.sets.length,0);
-  const body=s.entries.map((en,idx)=>entryCard(en,idx,s)).join('');
-  return header('En curso · '+dlong(s.date),s.name,`<button class="btn sm" data-act="finish">Terminar</button>`)+storageWarn()+`<div class="wrap">
-    <div class="card bg-p2 py-[11px] px-3.5">
-      <div class="between">
-        <div><span class="eyebrow">Series</span> <span class="mono font-extrabold">${sets}/${total}</span></div>
-        <div><span class="eyebrow">Volumen</span> <span class="mono font-extrabold">${fmt(Math.round(v))} kg</span></div>
-        <div><span class="eyebrow">Tiempo</span> <span class="mono font-extrabold" id="elapsed">${elapsed(s)}</span></div>
-      </div>
-    </div>
-    ${body}
-    <button class="btn w-full mt-3" data-act="add-ex">+ Agregar ejercicio a esta sesión</button>
-    <label class="f"><span class="eyebrow">Notas de la sesión</span>
-      <textarea data-act="s-note" placeholder="Cómo te sentiste, molestias, qué ajustar la próxima…">${esc(s.notes||'')}</textarea></label>
-    <div class="grid grid-cols-2 gap-2.5 mt-3 mx-0 mb-7">
-      <button class="btn danger" data-act="discard">Descartar</button>
-      <button class="btn primary" data-act="finish">Terminar sesión</button>
-    </div>
-  </div>`;
-}
-function elapsed(s){
-  const ms=Date.now()-(s.startedAt||Date.now()); const m=Math.floor(ms/60000);
-  return (m>=60?Math.floor(m/60)+'h ':'')+(m%60)+'m';
-}
-function entryCard(en,idx,s){
-  const ex=exById(en.exerciseId);
-  const t=en.target||{};
-  const prev=lastPerf(en.exerciseId,s.id);
-  const pbest=bestE1RM(en.exerciseId,s.id);
-  const rows=en.sets.map((st,i)=>{
-    const p=prev&&prev.sets[i];
-    const isPR=st.done && pbest>0 && e1rm(num(st.w)||0,num(st.r)||0)>pbest*1.001;
-    return `<div class="setgrid setrow ${st.done?'done':''} ${isPR?'pr':''}" data-e="${en.id}" data-i="${i}">
-      <div class="setno">${i+1}</div>
-      <input type="text" inputmode="decimal" data-f="w" value="${st.w===''?'':esc(st.w)}" placeholder="${p?esc(p.w):'kg'}">
-      <input type="text" inputmode="numeric" data-f="r" value="${st.r===''?'':esc(st.r)}" placeholder="${p?esc(p.r):'reps'}">
-      <input type="text" inputmode="numeric" data-f="rir" value="${st.rir===''?'':esc(st.rir)}" placeholder="RIR">
-      <button class="check" data-act="check">${st.done?(isPR?'★':'✓'):'✓'}</button>
-    </div>`;
-  }).join('');
-  const prevTxt=prev?`Última vez (${dnice(prev.date)}): `+prev.sets.map(x=>`${fmt(num(x.w))}×${x.r}`).join(' · '):'Sin registro previo — esta es tu línea de base.';
-  return `<div class="card ${t.ss?'ssgroup':''}">
-    <div class="exhead">
-      <div class="exnum ${t.ss?'ss':''}">${t.ss?t.ss:idx+1}</div>
-      <div class="flex-1 min-w-0 cursor-pointer" data-act="guide" data-id="${en.exerciseId}">
-        <div class="h3">${esc(ex?ex.name:'(borrado)')}</div>
-        <div class="text-tiny text-dim">${esc(ex?ex.group:'')} · objetivo ${t.repsMin||''}-${t.repsMax||''} reps · RIR ${esc(t.rir||'')} · ${t.rest||90}s ${t.ss?' · superserie '+t.ss:''}</div>
-      </div>
-      <button class="btn icon sm" data-act="entry-menu" data-e="${en.id}">⋯</button>
-    </div>
-    <div class="setgrid"><div></div><div class="lbl">kg</div><div class="lbl">reps</div><div class="lbl">rir</div><div></div></div>
-    ${rows}
-    <div class="prevline">${esc(prevTxt)}</div>
-    <div class="flex items-center mt-[9px] gap-2 flex-wrap">
-      <button class="btn sm" data-act="addset" data-e="${en.id}">+ Serie</button>
-      <button class="btn sm" data-act="delset" data-e="${en.id}">− Serie</button>
-      <button class="btn sm ghost" data-act="rest" data-e="${en.id}">⏱ ${t.rest||90}s</button>
-      <button class="btn icon sm ghost" data-act="rest-edit" data-e="${en.id}" title="Cambiar el descanso de hoy">✎</button>
-      <div class="flex-1 min-w-0"></div>
-      <button class="btn sm ghost" data-act="guide" data-id="${en.exerciseId}">Cómo se hace</button>
-    </div>
-    ${en.note?`<div class="note mt-[9px]">${esc(en.note)}</div>`:''}
-  </div>`;
-}
-
-/* ---------------- RUTINAS ---------------- */
-function viewRoutines(){
-  const list=state.routines.map(r=>`<div class="card">
-    <div class="between">
-      <div class="flex-1 min-w-0 cursor-pointer" data-act="r-edit" data-id="${r.id}">
-        <div class="h2">${esc(r.name)}</div>
-        <div class="text-small text-dim">${esc(r.subtitle||'')}</div>
-      </div>
-      <button class="btn sm" data-act="r-edit" data-id="${r.id}">Editar</button>
-    </div>
-    <hr class="border-t border-line my-3">
-    ${r.items.map((it,i)=>`<div class="flex items-center gap-2.5 text-tiny py-[3px] px-0">
-      <span class="mono text-dim w-5">${it.ss?it.ss:i+1}</span>
-      <span class="flex-1 min-w-0 truncate">${esc(exName(it.exerciseId))}</span>
-      <span class="mono text-dim">${it.sets}×${it.repsMin}-${it.repsMax}</span></div>`).join('')}
-    <div class="flex items-center mt-2.5 gap-2">
-      <button class="btn sm ghost" data-act="r-dup" data-id="${r.id}">Duplicar</button>
-      <button class="btn sm ghost danger" data-act="r-del" data-id="${r.id}">Borrar</button>
-      <div class="flex-1 min-w-0"></div>
-      <button class="btn sm primary" data-act="start" data-id="${r.id}">Empezar</button>
-    </div>
-  </div>`).join('');
-  return header('Tus sesiones','Rutinas',`<button class="btn sm primary" data-act="r-new">+ Nueva</button>`)+`<div class="wrap">${list||'<div class="empty">Todavía no hay rutinas. Creá la primera.</div>'}
-    <div class="card bg-transparent border-dashed mb-7"><div class="text-small text-dim">Mantené los mismos ejercicios 6-10 semanas. Cambiar todo cada semana hace imposible medir el progreso.</div></div></div>`;
-}
-function sheetRoutine(id){
-  const r=id?routineById(id):{id:'',name:'',subtitle:'',items:[]};
-  const opts=exOptions();
-  const items=r.items.map((it,i)=>`<div class="card p-[11px]" data-ri="${i}">
-    <div class="flex items-center gap-[7px]">
-      <span class="mono text-dim text-tiny w-4">${i+1}</span>
-      <select class="flex-1 min-w-0" data-k="exerciseId">${opts(it.exerciseId)}</select>
-      <button class="btn icon sm" data-act="ri-up" data-i="${i}">↑</button>
-      <button class="btn icon sm" data-act="ri-down" data-i="${i}">↓</button>
-      <button class="btn icon sm" data-act="ri-replace" data-i="${i}" title="Reemplazar ejercicio">⇄</button>
-      <button class="btn icon sm danger" data-act="ri-del" data-i="${i}">✕</button>
-    </div>
-    <div class="grid grid-cols-3 gap-2.5 mt-2">
-      <label class="f m-0"><span class="eyebrow">Series</span><input type="text" inputmode="numeric" data-k="sets" value="${it.sets}"></label>
-      <label class="f m-0"><span class="eyebrow">Reps mín</span><input type="text" inputmode="numeric" data-k="repsMin" value="${it.repsMin}"></label>
-      <label class="f m-0"><span class="eyebrow">Reps máx</span><input type="text" inputmode="numeric" data-k="repsMax" value="${it.repsMax}"></label>
-    </div>
-    <div class="grid grid-cols-3 gap-2.5 mt-2">
-      <label class="f m-0"><span class="eyebrow">RIR</span><input type="text" data-k="rir" value="${esc(it.rir)}"></label>
-      <label class="f m-0"><span class="eyebrow">Descanso s</span><input type="text" inputmode="numeric" data-k="rest" value="${it.rest}"></label>
-      <label class="f m-0"><span class="eyebrow">Superserie</span><input type="text" data-k="ss" value="${esc(it.ss||'')}" placeholder="A, B…"></label>
-    </div>
-  </div>`).join('');
-  openSheet(`<div class="between"><div class="h2">${id?'Editar rutina':'Nueva rutina'}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
-    <div id="rform" data-id="${esc(r.id)}">
-    <label class="f"><span class="eyebrow">Nombre</span><input type="text" data-k="name" value="${esc(r.name)}" placeholder="F · Full body"></label>
-    <label class="f"><span class="eyebrow">Subtítulo</span><input type="text" data-k="subtitle" value="${esc(r.subtitle||'')}" placeholder="Músculos que cubre"></label>
-    <div class="eyebrow mt-4 mx-0 mb-1.5">Ejercicios</div>
-    <div id="ritems">${items||'<div class="empty text-small">Sin ejercicios todavía.</div>'}</div>
-    <div class="grid grid-cols-2 gap-2.5 mt-2">
-      <button class="btn" data-act="ri-add">+ De mi biblioteca</button>
-      <button class="btn" data-act="ri-add-db">🔎 Buscar más (873)</button>
-    </div>
-    <button class="btn w-full primary mt-3.5" data-act="r-save">Guardar rutina</button>
-    </div>`);
-}
-function exOptions(){
-  const byG={}; state.exercises.forEach(e=>{(byG[e.group]=byG[e.group]||[]).push(e)});
-  return sel=>Object.keys(byG).sort().map(g=>`<optgroup label="${esc(g)}">`+byG[g].map(e=>`<option value="${e.id}" ${e.id===sel?'selected':''}>${esc(e.name)}</option>`).join('')+`</optgroup>`).join('');
-}
-
-/* ---------------- EJERCICIOS ---------------- */
-function viewExercises(){
-  const q=(state.ui.exq||'').toLowerCase();
-  const list=state.exercises.filter(e=>!q||e.name.toLowerCase().includes(q)||e.group.toLowerCase().includes(q));
-  const byG={}; list.forEach(e=>{(byG[e.group]=byG[e.group]||[]).push(e)});
-  const blocks=Object.keys(byG).sort().map(g=>`<div class="eyebrow mt-[18px] mx-0 mb-0.5">${esc(g)} · ${byG[g].length}</div>
-    <div class="card">${byG[g].map(e=>`<div class="li">
-      <div class="flex-1 min-w-0 cursor-pointer" data-act="guide" data-id="${e.id}">
-        <div class="h3 truncate">${esc(e.name)}</div>
-        <div class="text-tiny text-dim">${e.cues.length} pasos${e.custom?' · propio':''}</div>
-      </div>
-      <button class="btn icon sm ghost" data-act="x-replace-db" data-id="${e.id}" title="Reemplazar por otro de la base pública">⇄</button>
-      <button class="btn sm ghost" data-act="x-edit" data-id="${e.id}">Editar</button>
-    </div>`).join('')}</div>`).join('');
-  return header('Biblioteca','Ejercicios',`<button class="btn sm primary" data-act="x-new">+ Nuevo</button>`)+`<div class="wrap">
-    <input class="mt-1.5" type="text" placeholder="Buscar ejercicio o músculo…" value="${esc(state.ui.exq||'')}" data-act="exq">
-    <button class="btn w-full ghost mt-2.5" data-act="x-search-db-lib">🔎 Explorar más ejercicios (873, con fotos)</button>
-    ${blocks||'<div class="empty">Nada con ese nombre.</div>'}
-    <div class="h-6"></div></div>`;
-}
-function sheetGuide(id){
-  const e=exById(id); if(!e) return;
-  const hist=exerciseHistory(id).slice(0,5);
-  const photos=(e.images&&e.images.length)?`<div class="flex items-center gap-2 mt-3 overflow-x-auto" data-photos='${esc(JSON.stringify(e.images))}'>
-    ${e.images.map((u,i)=>`<img class="h-[150px] rounded-ctl border border-line flex-none cursor-zoom-in" src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" onerror="this.style.display='none'">`).join('')}
-    </div>${e.photoNote?`<div class="warn mt-2">${esc(e.photoNote)}</div>`:''}
-    <div class="text-tiny text-dim mt-[5px]">Fotos: Free Exercise DB (dominio público)</div>`:'';
-  openSheet(`<div class="between"><div class="flex-1 min-w-0"><div class="eyebrow">${esc(e.group)}</div><div class="h2">${esc(e.name)}</div></div>
-    <button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
-    ${photos}
-    ${e.tip?`<div class="note mt-3">${esc(e.tip)}</div>`:''}
-    <div class="eyebrow mt-4 mx-0 mb-1">Ejecución</div>
-    ${e.cues.map((c,i)=>`<div class="cue"><b>${i+1}</b><span>${esc(c)}</span></div>`).join('')}
-    ${e.err?`<div class="eyebrow mt-3.5 mx-0 mb-1">Error común</div><div class="warn">${esc(e.err)}</div>`:''}
-    ${hist.length?`<div class="eyebrow mt-4 mx-0 mb-1">Últimas sesiones</div>
-      <table class="t"><tr><th>Fecha</th><th>Mejor serie</th><th class="n">1RM est.</th></tr>
-      ${hist.map(h=>`<tr><td>${dnice(h.date)}</td><td>${fmt(h.bw)}×${h.br}</td><td class="n">${fmt(Math.round(h.e))}</td></tr>`).join('')}</table>`:''}
-    <button class="btn w-full mt-4" data-act="x-edit" data-id="${e.id}">Editar este ejercicio</button>`);
-}
-function sheetExercise(id, prefill?){
-  const base = id?exById(id):{id:'',name:'',group:'Pecho',cues:[],err:'',tip:'',images:[]};
-  const e = prefill ? Object.assign({}, base, prefill, {id: base.id}) : base;
-  const photos=(e.images&&e.images.length)?`<div class="flex items-center gap-2 my-2 mx-0 overflow-x-auto" data-photos='${esc(JSON.stringify(e.images))}'>
-    ${e.images.map((u,i)=>`<img class="h-20 rounded-lg border border-line flex-none cursor-zoom-in" src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" onerror="this.style.display='none'">`).join('')}
-    </div>`:'';
-  openSheet(`<div class="between"><div class="h2">${id?'Editar ejercicio':'Nuevo ejercicio'}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
-    ${id?`<button class="btn w-full ghost mt-1" data-act="x-replace-db" data-id="${esc(e.id)}">Reemplazar por otro de la base pública</button>`:'<button class="btn w-full ghost mt-1" data-act="x-search-db">Buscar en la base pública (con fotos)</button>'}
-    <div id="xform" data-id="${esc(e.id)}" data-images='${esc(JSON.stringify(e.images||[]))}'>
-    ${photos}
-    <label class="f"><span class="eyebrow">Nombre</span><input type="text" data-k="name" value="${esc(e.name)}"></label>
-    <label class="f"><span class="eyebrow">Grupo muscular</span><select data-k="group">${GROUPS.map(g=>`<option ${g===e.group?'selected':''}>${g}</option>`).join('')}</select></label>
-    <label class="f"><span class="eyebrow">Pasos de ejecución (uno por línea)</span><textarea class="min-h-[130px]" data-k="cues">${esc((e.cues||[]).join('\n'))}</textarea></label>
-    <label class="f"><span class="eyebrow">Error común</span><textarea class="min-h-[60px]" data-k="err">${esc(e.err||'')}</textarea></label>
-    <label class="f"><span class="eyebrow">Nota / por qué está elegido</span><textarea class="min-h-[60px]" data-k="tip">${esc(e.tip||'')}</textarea></label>
-    <button class="btn w-full primary mt-3.5" data-act="x-save">Guardar</button>
-    ${id?`<button class="btn w-full danger ghost mt-2" data-act="x-del" data-id="${e.id}">Borrar ejercicio</button>`:''}
-    </div>`);
-}
-
 /* ---------------- VISOR DE FOTOS ---------------- */
 let lbImgs=[], lbIdx=0;
 function openLightbox(imgs, idx){
@@ -680,305 +422,6 @@ $('#lightbox').addEventListener('click', ev=>{ if(ev.target.id==='lightbox') clo
 document.addEventListener('keydown', ev=>{ if(ev.key==='Escape' && $('#lightbox').classList.contains('on')) closeLightbox(); });
 
 /* ---------------- PROGRESO ---------------- */
-function exerciseHistory(exId){
-  const out=[];
-  doneSessions().forEach(s=>{
-    const en=(s.entries||[]).find(e=>e.exerciseId===exId); if(!en) return;
-    let bw=0,br=0,best=0,vol=0,sets=0;
-    en.sets.forEach(x=>{ if(!x.done) return; const w=num(x.w)||0,r=num(x.r)||0; sets++; vol+=w*r;
-      const e=e1rm(w,r); if(e>best){best=e;bw=w;br=r;} });
-    if(sets) out.push({date:s.date,bw,br,e:best,vol,sets});
-  });
-  return out;
-}
-function viewProgress(){
-  const tab=state.ui.ptab||'ex';
-  const tabs=`<div class="flex items-center gap-2 mt-2 mx-0 mb-0.5">
-    ${[['ex','Ejercicio'],['vol','Volumen'],['hist','Historial'],['bw','Peso corporal']].map(([k,l])=>
-      `<button class="btn sm ${tab===k?'primary':'ghost'}" data-act="ptab" data-t="${k}">${l}</button>`).join('')}</div>`;
-  let body='';
-  if(tab==='ex') body=progExercise();
-  if(tab==='vol') body=progVolume();
-  if(tab==='hist') body=progHistory();
-  if(tab==='bw') body=progBW();
-  return header('Lo que se mide, mejora','Progreso')+`<div class="wrap">${tabs}${body}<div class="h-7"></div></div>`;
-}
-function progExercise(){
-  const id=state.ui.progressEx||state.exercises[0].id;
-  const h=exerciseHistory(id);
-  const opts=exOptions()(id);
-  const chart=h.length>1?lineChart(h.map(x=>({x:x.date,y:x.e}))):'<div class="empty text-small">Registrá al menos dos sesiones con este ejercicio para ver la curva.</div>';
-  const rows=h.slice().reverse().map(x=>`<tr><td>${dnice(x.date)}</td><td>${fmt(x.bw)}×${x.br}</td><td class="n">${fmt(Math.round(x.e))}</td><td class="n">${fmt(Math.round(x.vol))}</td></tr>`).join('');
-  const first=h[0],last=h[h.length-1];
-  const delta=(first&&last&&h.length>1)?((last.e-first.e)/first.e*100):null;
-  return `<label class="f"><span class="eyebrow">Ejercicio</span><select data-act="pex">${opts}</select></label>
-    <div class="card">
-      <div class="between mb-1.5">
-        <div><div class="eyebrow">1RM estimado</div><div class="mono text-[24px] font-extrabold">${last?fmt(Math.round(last.e)):'—'}<span class="text-dim text-small"> kg</span></div></div>
-        ${delta!=null?`<div class="text-right"><div class="eyebrow">Desde el inicio</div><div class="mono text-[24px] font-extrabold ${delta>=0?'text-ok':'text-hot'}">${delta>=0?'+':''}${fmt(Math.round(delta*10)/10)}%</div></div>`:''}
-      </div>
-      ${chart}
-    </div>
-    ${h.length?`<table class="t"><tr><th>Fecha</th><th>Mejor serie</th><th class="n">1RM est.</th><th class="n">Volumen</th></tr>${rows}</table>`:''}`;
-}
-function lineChart(pts){
-  const W=320,H=120,pad=10;
-  const ys=pts.map(p=>p.y), mn=Math.min(...ys), mx=Math.max(...ys), span=(mx-mn)||1;
-  const X=i=>pad+(i/(pts.length-1))*(W-pad*2);
-  const Y=v=>H-pad-((v-mn)/span)*(H-pad*2-10);
-  const d=pts.map((p,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(p.y).toFixed(1)).join(' ');
-  const area=d+` L ${X(pts.length-1).toFixed(1)} ${H-pad} L ${X(0).toFixed(1)} ${H-pad} Z`;
-  return `<svg class="w-full h-auto block" viewBox="0 0 ${W} ${H}">
-    <path d="${area}" fill="rgba(255,204,29,.10)"/>
-    <path d="${d}" fill="none" stroke="#FFCC1D" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    ${pts.map((p,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="2.6" fill="#0E1316" stroke="#FFCC1D" stroke-width="1.6"/>`).join('')}
-    <text x="${pad}" y="11" fill="#5F6E75" font-size="9" font-family="monospace">${fmt(Math.round(mx))}</text>
-    <text x="${pad}" y="${H-1}" fill="#5F6E75" font-size="9" font-family="monospace">${fmt(Math.round(mn))}</text>
-  </svg>`;
-}
-function progVolume(){
-  const w=weeklySets(7);
-  const rows=GROUPS.map(g=>{
-    const n=w[g]||0, [lo,hi]=RANGES[g], max=Math.max(hi*1.35,n);
-    const pct=clamp(n/max*100,0,100), lp=lo/max*100, hp=hi/max*100;
-    const cls=n<lo?'low':n>hi?'hi':'';
-    return `<div class="py-[9px] px-0 border-b border-line">
-      <div class="between mb-[5px]">
-        <div class="text-small font-bold">${esc(g)}</div>
-        <div class="mono text-tiny ${n<lo?'text-dim':''}">${n} <span class="text-dim">/ ${lo}-${hi}</span></div>
-      </div>
-      <div class="bar"><i class="${cls}" style="width:${pct}%"></i><span class="zone" style="left:${lp}%;width:${hp-lp}%"></span></div>
-    </div>`;
-  }).join('');
-  const hist=weekBars();
-  return `<div class="card"><div class="eyebrow">Series efectivas · últimos 7 días</div>
-    <div class="text-tiny text-dim mt-0.5 mx-0 mb-2">Las líneas marcan el rango óptimo del plan. Solo cuentan las series que marcaste como hechas.</div>
-    ${rows}</div>
-    <div class="card"><div class="eyebrow">Volumen por semana (kg totales)</div>${hist}</div>`;
-}
-function weekBars(){
-  const weeks=[];
-  for(let i=7;i>=0;i--){
-    const end=new Date(Date.now()-i*7*864e5), start=new Date(+end-7*864e5);
-    const a=start.toISOString().slice(0,10), b=end.toISOString().slice(0,10);
-    let v=0,n=0;
-    state.sessions.filter(s=>s.endedAt&&s.date>a&&s.date<=b).forEach(s=>{const r=sessionVolume(s);v+=r.v;n++;});
-    weeks.push({label:dnice(b),v,n});
-  }
-  const mx=Math.max(1,...weeks.map(w=>w.v));
-  if(mx<=1) return '<div class="empty text-small">Sin sesiones registradas todavía.</div>';
-  return `<div class="flex items-end gap-[5px] h-[110px] mt-2.5">
-    ${weeks.map(w=>`<div class="flex-1 min-w-0 text-center">
-      <div class="rounded-t-[4px] min-h-[3px] ${w.v?'bg-sig':'bg-p3'}" style="height:${Math.round(w.v/mx*84)}px"></div>
-      <div class="text-tiny text-dim mono mt-1">${w.label}</div></div>`).join('')}</div>
-    <div class="text-tiny text-dim mt-1.5">Cada barra = una semana que termina en esa fecha.</div>`;
-}
-function progHistory(){
-  const ss=doneSessions();
-  if(!ss.length) return '<div class="empty">Todavía no terminaste ninguna sesión.</div>';
-  return ss.map(s=>{const r=sessionVolume(s);return `<div class="card">
-    <div class="between">
-      <div class="flex-1 min-w-0 cursor-pointer" data-act="sess-view" data-id="${s.id}">
-        <div class="h3">${esc(s.name)}</div>
-        <div class="text-tiny text-dim">${dlong(s.date)} · ${r.sets} series · ${fmt(Math.round(r.v))} kg${s.dur?' · '+s.dur:''}</div>
-      </div>
-      <button class="btn sm ghost" data-act="sess-view" data-id="${s.id}">Ver</button>
-    </div></div>`;}).join('');
-}
-function sheetSession(id){
-  const s=state.sessions.find(x=>x.id===id); if(!s) return;
-  const r=sessionVolume(s);
-  openSheet(`<div class="between"><div class="flex-1 min-w-0"><div class="eyebrow">${dlong(s.date)}</div><div class="h2">${esc(s.name)}</div></div>
-    <button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
-    <div class="flex items-center gap-2 my-2.5 mx-0"><span class="chip">${r.sets} series</span><span class="chip">${fmt(Math.round(r.v))} kg</span>${s.dur?`<span class="chip">${esc(s.dur)}</span>`:''}</div>
-    ${s.entries.map(en=>`<div class="card p-[11px]">
-      <div class="h3">${esc(exName(en.exerciseId))}</div>
-      <div class="mono text-small text-dim mt-1">${en.sets.filter(x=>x.done).map(x=>`${fmt(num(x.w))}×${x.r}${x.rir!==''?' (RIR '+x.rir+')':''}`).join(' · ')||'sin series'}</div>
-    </div>`).join('')}
-    ${s.notes?`<div class="note">${esc(s.notes)}</div>`:''}
-    <button class="btn w-full ghost mt-3" data-act="sess-repeat" data-id="${s.id}">Repetir esta sesión</button>
-    <button class="btn w-full danger ghost mt-2" data-act="sess-del" data-id="${s.id}">Borrar del historial</button>`);
-}
-function progBW(){
-  const b=state.bw.slice().sort((a,c)=>a.date<c.date?1:-1);
-  const avg=(from,to)=>{const sl=b.filter(x=>x.date>from&&x.date<=to);return sl.length?sl.reduce((a,c)=>a+c.kg,0)/sl.length:null;};
-  const t=today(), w1=new Date(Date.now()-7*864e5).toISOString().slice(0,10), w2=new Date(Date.now()-14*864e5).toISOString().slice(0,10);
-  const a1=avg(w1,t), a2=avg(w2,w1);
-  const diff=(a1!=null&&a2!=null)?a1-a2:null;
-  const pct=(diff!=null&&a2)?diff/a2*100:null;
-  let verdict='Cargá 4-5 pesadas por semana, en ayunas, para tener un promedio confiable.';
-  if(pct!=null){
-    if(Math.abs(diff)<=0.3) verdict='Peso estable. Si la fuerza sube, estás en recomposición: no toques nada.';
-    else if(pct<-0.7) verdict='Estás bajando rápido (más de 0,7%). Sumá 150-200 kcal al día o vas a perder músculo.';
-    else if(pct<0) verdict='Bajada suave. Sostenida está bien; si además la fuerza cae, subí un poco las calorías.';
-    else if(pct>0.5) verdict='Subida marcada. Revisá aceites, bebidas y picoteos sin registrar; bajá 200-250 kcal.';
-    else verdict='Subida leve. Puede ser agua o sal: mirá la tendencia de otra semana antes de tocar calorías.';
-  }
-  const chart=b.length>1?lineChart(b.slice().reverse().map(x=>({x:x.date,y:x.kg}))):'';
-  return `<div class="card">
-      <div class="flex items-center gap-2">
-        <input class="flex-1" type="text" inputmode="decimal" id="bwkg" placeholder="kg de hoy">
-        <button class="btn primary" data-act="bw-add">Anotar</button>
-      </div>
-      <div class="flex items-center gap-4 mt-3">
-        <div><div class="eyebrow">Promedio 7 días</div><div class="mono text-[24px] font-extrabold">${a1!=null?fmt(Math.round(a1*10)/10):'—'}</div></div>
-        <div><div class="eyebrow">vs semana previa</div><div class="mono text-[24px] font-extrabold ${diff==null?'text-dim':Math.abs(diff)<=0.3?'text-ok':'text-sig'}">${diff!=null?(diff>0?'+':'')+fmt(Math.round(diff*10)/10):'—'}</div></div>
-      </div>
-      ${chart}
-      <div class="note mt-2.5">${esc(verdict)}</div>
-    </div>
-    ${b.length?`<table class="t"><tr><th>Fecha</th><th class="n">kg</th><th></th></tr>${b.map(x=>`<tr><td>${dnice(x.date)}</td><td class="n">${fmt(x.kg)}</td><td class="n"><button class="btn sm ghost danger" data-act="bw-del" data-d="${x.date}">✕</button></td></tr>`).join('')}</table>`:'<div class="empty text-small">Sin pesadas cargadas.</div>'}`;
-}
-
-/* ---------------- AJUSTES ---------------- */
-function viewSettings(){
-  const s=state.settings;
-  const ACCENTS=[['mostaza','Mostaza'],['verde','Verde'],['fucsia','Fucsia'],['violeta','Violeta'],['celeste','Celeste'],['coral','Coral']];
-  return header('Tu copia, tus datos','Ajustes')+`<div class="wrap">
-    ${accountCard()}
-    <div class="card">
-      <div class="eyebrow">Apariencia</div>
-      <div class="flex items-center gap-2 mt-2.5 mx-0 mb-3.5">
-        <button class="btn ${s.theme!=='light'?'primary':''} flex-1" data-act="theme" data-v="dark">Oscuro</button>
-        <button class="btn ${s.theme==='light'?'primary':''} flex-1" data-act="theme" data-v="light">Claro</button>
-      </div>
-      <div class="eyebrow mb-2">Color</div>
-      <div class="flex items-center gap-2.5 flex-wrap">
-        ${ACCENTS.map(([v,label])=>`<button class="w-[38px] h-[38px] rounded-pill p-0 flex-none border-2 ${s.accent===v?'border-tx':'border-transparent'}" data-act="accent" data-v="${v}" title="${label}" style="background:${ACCENT_HEX[v]}"></button>`).join('')}
-      </div>
-    </div>
-    <div class="card">
-      <div class="eyebrow">Entrenamiento</div>
-      <div class="switch"><div><div class="h3">Arrancar el descanso solo</div><div class="text-tiny text-dim">Al marcar una serie como hecha</div></div>
-        <div class="tog ${s.autoTimer?'on':''}" data-act="tog" data-k="autoTimer"><i></i></div></div>
-      <div class="switch"><div><div class="h3">Sonidos del descanso</div><div class="text-tiny text-dim">Al arrancar, cuando está por terminar y al terminar</div></div>
-        <div class="tog ${s.sound?'on':''}" data-act="tog" data-k="sound"><i></i></div></div>
-      <div class="switch"><div><div class="h3">Vibración</div><div class="text-tiny text-dim">Si el dispositivo la soporta</div></div>
-        <div class="tog ${s.vibrate?'on':''}" data-act="tog" data-k="vibrate"><i></i></div></div>
-      <div class="switch border-b-0"><div><div class="h3">Pantalla siempre encendida</div><div class="text-tiny text-dim">Mientras dura la sesión</div></div>
-        <div class="tog ${s.wake?'on':''}" data-act="tog" data-k="wake"><i></i></div></div>
-      <label class="f"><span class="eyebrow">Descanso por defecto (segundos)</span>
-        <input type="text" inputmode="numeric" data-act="set-rest" value="${s.rest}"></label>
-    </div>
-
-    <div class="card">
-      <div class="eyebrow">Calculadora de discos</div>
-      <div class="text-tiny text-dim mt-0.5 mx-0 mb-2">Cuántos discos por lado para el peso total que querés.</div>
-      <div class="flex items-center gap-2">
-        <input class="flex-1" type="text" inputmode="decimal" id="plateW" placeholder="peso total">
-        <input class="w-22" type="text" inputmode="decimal" id="plateBar" value="${s.bar}" title="barra">
-        <button class="btn primary" data-act="plate">Calcular</button>
-      </div>
-      <div id="plateOut" class="mono text-small mt-2.5 text-sig"></div>
-    </div>
-
-    <div class="card">
-      <div class="eyebrow">Privacidad</div>
-      <div class="text-small text-dim mt-1 mx-0 mb-2.5">Un PIN para abrir la app en este dispositivo. Se guarda solo acá, no viaja a la nube ni a otros dispositivos.</div>
-      ${pinIsSet()
-        ? `<div class="grid grid-cols-2 gap-2.5"><button class="btn" data-act="pin-change">Cambiar PIN</button><button class="btn ghost danger" data-act="pin-disable">Desactivar</button></div>`
-        : `<button class="btn w-full primary" data-act="pin-enable">Activar PIN</button>`}
-    </div>
-    <div class="card">
-      <div class="eyebrow">Copia de seguridad</div>
-      <div class="text-tiny text-dim mt-0.5 mx-0 mb-2.5">Los datos viven solo en este navegador. Exportá de vez en cuando y guardate el archivo.</div>
-      <div class="grid grid-cols-2 gap-2.5">
-        <button class="btn" data-act="export">Exportar .json</button>
-        <button class="btn" data-act="import">Importar .json</button>
-      </div>
-      <input class="hidden" type="file" id="fileIn" accept="application/json,.json">
-      <button class="btn w-full ghost mt-2" data-act="export-csv">Exportar historial .csv</button>
-    </div>
-
-    <div class="card">
-      <div class="eyebrow">Datos</div>
-      <div class="flex items-center gap-3 mt-2">
-        <div><div class="mono text-[22px] font-extrabold">${state.sessions.filter(x=>x.endedAt).length}</div><div class="text-tiny text-dim">sesiones</div></div>
-        <div><div class="mono text-[22px] font-extrabold">${state.exercises.length}</div><div class="text-tiny text-dim">ejercicios</div></div>
-        <div><div class="mono text-[22px] font-extrabold">${state.routines.length}</div><div class="text-tiny text-dim">rutinas</div></div>
-      </div>
-      <button class="btn w-full ghost mt-3.5" data-act="tutorial">Ver el tutorial</button>
-      <button class="btn w-full ghost mt-2" data-act="update">Buscar actualización de la app</button>
-      <button class="btn w-full danger ghost mt-2" data-act="reset">Restaurar el plan original</button>
-      <button class="btn w-full danger ghost mt-2" data-act="wipe">Borrar todo</button>
-    </div>
-
-    <div class="card bg-transparent border-dashed mb-7">
-      <div class="text-small text-dim">Bitácora · basada en tu plan Push-Pull-Legs + Torso-Pierna. Guía general de entrenamiento, no consejo médico.
-      Doble progresión: cuando llegás al techo de repeticiones en todas las series, subí 2,5 kg arriba / 5 kg abajo y volvé al piso del rango.</div>
-    </div>
-  </div>`;
-}
-
-
-/* =========================================================
-   CUENTA Y SINCRONIZACIÓN (interfaz)
-   ========================================================= */
-function syncBadge(){
-  const S: any=window.Sync?Sync.state:{status:'unconfigured'};
-  const map={ ok:['ok','Al día'], syncing:['sig','Sincronizando…'], offline:['','Sin conexión'],
-              error:['','Error'], local:['','Solo este dispositivo'], unconfigured:['','Solo este dispositivo'] };
-  const [cls,txt]=map[S.status]||['',''];
-  return `<span class="chip ${cls}">${esc(S.msg||txt)}</span>`;
-}
-function accountCard(){
-  const S: any=window.Sync?Sync.state:{status:'unconfigured'};
-  if(S.status==='unconfigured'){
-    return `<div class="card">
-      <div class="eyebrow">Cuenta</div>
-      <div class="text-small text-dim mt-1">La sincronización está apagada porque falta cargar las claves de Firebase en <span class="mono">config.js</span>. La app funciona igual: los datos quedan guardados en este dispositivo.</div>
-    </div>`;
-  }
-  if(!S.user){
-    return `<div class="card">
-      <div class="between"><div class="eyebrow">Cuenta</div>${syncBadge()}</div>
-      <div class="text-small text-dim mt-1 mx-0 mb-2.5">Iniciá sesión para que tu historial se guarde en la nube y lo tengas en cualquier dispositivo.</div>
-      <button class="btn w-full primary" data-act="auth-open">Entrar o crear cuenta</button>
-    </div>`;
-  }
-  const lp=(window.Sync&&Sync.lastPull)?Sync.lastPull():null;
-  const lpTxt=lp?new Date(lp).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'nunca';
-  return `<div class="card">
-    <div class="between"><div class="eyebrow">Cuenta</div>${syncBadge()}</div>
-    <div class="h3 mt-1">${esc(S.user.email||'')}</div>
-    <div class="text-tiny text-dim">${S.last?'Última sincronización: '+new Date(S.last).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'Todavía no sincronizó'}</div>
-    <div class="text-tiny text-dim">Último intercambio con la nube: ${esc(lpTxt)}</div>
-    <div class="grid grid-cols-2 gap-2.5 mt-2.5">
-      <button class="btn" data-act="sync-now">Sincronizar ahora</button>
-      <button class="btn ghost" data-act="auth-out">Cerrar sesión</button>
-    </div>
-  </div>`;
-}
-function sheetAuth(mode){
-  const reg=mode==='reg';
-  openSheet(`<div class="between"><div class="h2">${reg?'Crear cuenta':'Entrar'}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
-    <label class="f"><span class="eyebrow">Email</span><input type="text" id="auEmail" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="vos@email.com"></label>
-    <label class="f"><span class="eyebrow">Contraseña</span><input type="password" id="auPass" autocomplete="${reg?'new-password':'current-password'}" placeholder="mínimo 6 caracteres"></label>
-    <div id="auErr" class="warn hidden mt-2.5"></div>
-    <button class="btn w-full primary mt-3.5" data-act="${reg?'auth-signup':'auth-signin'}">${reg?'Crear cuenta':'Entrar'}</button>
-    <button class="btn w-full ghost mt-2" data-act="auth-toggle" data-m="${reg?'in':'reg'}">${reg?'Ya tengo cuenta':'Crear una cuenta nueva'}</button>
-    ${reg?'':'<button class="btn w-full ghost mt-2" data-act="auth-reset">Olvidé la contraseña</button>'}
-    <div class="flex items-center gap-2.5 my-4 mx-0"><hr class="border-t border-line my-3 flex-1 m-0"><span class="text-tiny text-dim">o</span><hr class="border-t border-line my-3 flex-1 m-0"></div>
-    <button class="btn w-full" data-act="auth-google">
-      <svg class="mr-0.5" width="17" height="17" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.56 2.7-3.87 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03l2.99-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97l2.99 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
-      Continuar con Google
-    </button>
-    <div class="text-tiny text-dim mt-3.5 mx-0 mb-1">Al entrar, lo que ya tengas en la nube se descarga y se junta con lo de este dispositivo. Nada se pisa sin avisar.</div>`);
-}
-function authErr(e){
-  const c=(e&&e.code)||'';
-  const map={'auth/invalid-email':'Ese email no es válido.','auth/missing-password':'Falta la contraseña.',
-    'auth/weak-password':'La contraseña necesita al menos 6 caracteres.','auth/email-already-in-use':'Ya existe una cuenta con ese email. Entrá en vez de crearla.',
-    'auth/invalid-credential':'Email o contraseña incorrectos.','auth/wrong-password':'Contraseña incorrecta.',
-    'auth/user-not-found':'No hay cuenta con ese email.','auth/network-request-failed':'Sin conexión. Probá de nuevo con internet.',
-    'auth/too-many-requests':'Demasiados intentos. Esperá un rato.','auth/operation-not-allowed':'Falta habilitar Email/Contraseña en la consola de Firebase.',
-    'auth/popup-closed-by-user':'Cerraste la ventana antes de terminar. Probá de nuevo.',
-    'auth/popup-blocked':'El navegador bloqueó la ventana emergente. Permitila e intentá de nuevo.',
-    'auth/cancelled-popup-request':'Ventana cancelada, probá de nuevo.',
-    'auth/unauthorized-domain':'Este dominio no está autorizado en Firebase todavía.'};
-  const el=$('#auErr'); if(el){ el.style.display='block'; el.textContent=map[c]||('No se pudo: '+(c||(e&&e.message)||'error desconocido')); }
-}
-
 /* =========================================================
    ACCIONES
    ========================================================= */
@@ -988,7 +431,7 @@ function startSession(routineId){
     entries:r.items.map(it=>({ id:uid(), exerciseId:it.exerciseId,
       target:{sets:it.sets,repsMin:it.repsMin,repsMax:it.repsMax,rir:it.rir,rest:it.rest,ss:it.ss},
       sets:Array.from({length:it.sets},()=>({w:'',r:'',rir:'',done:false})) })) };
-  save(true); view='train'; void keepAwake(true); render();
+  save(true); setView('train'); void keepAwake(true); render();
 }
 function finishSession(){
   const s=state.active; if(!s) return;
@@ -1073,7 +516,7 @@ document.addEventListener('click',(ev: any)=>{
   const a=el.dataset.act;
 
   if(a==='check' && row){ toggleSet(row); return; }
-  if(a==='nav'){ view=el.dataset.v; closeSheet(); render(); return; }
+  if(a==='nav'){ setView(el.dataset.v); closeSheet(); render(); return; }
   if(a==='closesheet'){ closeSheet(); return; }
 
   /* timer */
@@ -1236,7 +679,7 @@ document.addEventListener('click',(ev: any)=>{
     state.active={id:uid(),routineId:s.routineId,name:s.name,date:today(),startedAt:Date.now(),notes:'',
       entries:s.entries.map(en=>({id:uid(),exerciseId:en.exerciseId,target:en.target,
         sets:en.sets.map(()=>({w:'',r:'',rir:'',done:false}))}))};
-    save(true); closeSheet(); view='train'; render(); return;
+    save(true); closeSheet(); setView('train'); render(); return;
   }
   if(a==='bw-add'){
     const kg=num($('#bwkg').value); if(kg==null){ toast('Poné un número'); return; }
@@ -1316,7 +759,7 @@ document.addEventListener('click',(ev: any)=>{
   if(a==='tour-skip'){ endTour(); return; }
   if(a==='tour-prev'){ tourGoTo(tourIdx-1,-1); return; }
   if(a==='tour-next'){
-    if(tourIdx>=TOUR_STEPS.length-1){ endTour(); view='train'; render(); return; }
+    if(tourIdx>=TOUR_STEPS.length-1){ endTour(); setView('train'); render(); return; }
     tourGoTo(tourIdx+1,1); return;
   }
 });
