@@ -1,22 +1,40 @@
-"use strict";
 /* =========================================================
    BITÁCORA — registro de entrenamiento offline
-   Un solo archivo. Sin internet. Datos en este dispositivo.
+   Sin internet. Datos en este dispositivo.
    ========================================================= */
+import "./app.css";
+import "./sync";
+import { registerServiceWorker, checkForUpdate } from "./pwa";
+import {
+  GROUPS,
+  clamp,
+  num,
+  e1rm,
+  bestE1RM as calcBestE1RM,
+  doneSessions as calcDoneSessions,
+  lastPerf as calcLastPerf,
+  sessionVolume as calcSessionVolume,
+  weeklySets as calcWeeklySets,
+} from "./lib/calc";
+import {
+  newTimer,
+  restoreTimer as restoredTimerState,
+  timerFrame,
+  type TimerState,
+} from "./lib/timer";
 
 /* ---------- utilidades ---------- */
-const $ = (s,r=document)=>r.querySelector(s);
-const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+/* The DOM helpers stay untyped on purpose. Every view below writes to elements
+   whose shape it already knows; annotating them one by one is a later phase. */
+const $ = (s: string, r: ParentNode = document): any => r.querySelector(s);
+const $$ = (s: string, r: ParentNode = document): any[] => Array.from(r.querySelectorAll(s));
 const uid = ()=>Math.random().toString(36).slice(2,10);
 const esc = s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const num = v=>{ if(v===''||v==null) return null; const n=parseFloat(String(v).replace(',','.')); return isNaN(n)?null:n; };
 const fmt = n=>{ if(n==null) return '—'; const r=Math.round(n*100)/100; return String(r).replace('.',','); };
 const today = ()=>new Date().toISOString().slice(0,10);
-const dnice = iso=>{ const [y,m,d]=iso.split('-'); return d+'/'+m; };
+const dnice = iso=>{ const [,m,d]=iso.split('-'); return d+'/'+m; };
 const dlong = iso=>{ const dt=new Date(iso+'T12:00:00'); return dt.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'}); };
-const daysAgo = iso=>Math.round((new Date(today()+'T12:00:00')-new Date(iso+'T12:00:00'))/864e5);
-const e1rm = (w,r)=>(w&&r)?w*(1+r/30):0;
-const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const daysAgo = iso=>Math.round((+new Date(today()+'T12:00:00') - +new Date(iso+'T12:00:00'))/864e5);
 
 /* ---------- almacenamiento ---------- */
 const KEY='bitacora_gym_v2';
@@ -26,23 +44,22 @@ function readStore(){
   try{ const raw = STORAGE_OK ? localStorage.getItem(KEY) : memBlob; return raw?JSON.parse(raw):null; }catch(e){ return null; }
 }
 let saveT=null;
-function save(now){
+function save(now?){
   const blob=JSON.stringify(state);
   memBlob=blob;
   if(!STORAGE_OK) return;
   clearTimeout(saveT);
   const w=()=>{ try{ localStorage.setItem(KEY,blob); }catch(e){ STORAGE_OK=false; toast('No se pudo guardar: almacenamiento lleno'); } };
-  now ? w() : saveT=setTimeout(w,250);
+  if(now) w(); else saveT=setTimeout(w,250);
   if(window.Sync) Sync.schedule(now?1500:5000);
 }
 
 /* ---------- grupos musculares ---------- */
 const ACCENT_HEX={mostaza:'#FFCC1D',verde:'#3ADB7A',fucsia:'#FF4FA6',violeta:'#9B6BFF',celeste:'#33C4F2',coral:'#FF7A59'};
-const GROUPS=['Pecho','Espalda','Deltoides lateral','Deltoides ant/post','Bíceps','Tríceps','Antebrazo','Cuádriceps','Isquios/Glúteo','Gemelos','Aductores','Core'];
 const RANGES={'Pecho':[10,20],'Espalda':[10,20],'Deltoides lateral':[8,16],'Deltoides ant/post':[4,10],'Bíceps':[8,16],'Tríceps':[8,16],'Antebrazo':[2,10],'Cuádriceps':[10,18],'Isquios/Glúteo':[10,18],'Gemelos':[6,12],'Aductores':[2,10],'Core':[6,12]};
 
 /* ---------- semilla: ejercicios (guía de ejecución) ---------- */
-function E(id,name,group,cues,err,tip){return {id,name,group,cues,err:err||'',tip:tip||'',custom:false};}
+function E(id,name,group,cues,err?,tip?){return {id,name,group,cues,err:err||'',tip:tip||'',custom:false};}
 const EX_IMAGES = {"press-inc": {"name": "Incline Dumbbell Press", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Press/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Press/1.jpg"]}, "press-maq": {"name": "Cable Chest Press", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Chest_Press/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Chest_Press/1.jpg"]}, "press-mil": {"name": "Seated Dumbbell Press", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Dumbbell_Press/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Dumbbell_Press/1.jpg"]}, "lat-polea": {"name": "Cable Seated Lateral Raise", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Seated_Lateral_Raise/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Seated_Lateral_Raise/1.jpg"]}, "face-pull": {"name": "Face Pull", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Face_Pull/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Face_Pull/1.jpg"]}, "tri-oh": {"name": "Cable Rope Overhead Triceps Extension", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Rope_Overhead_Triceps_Extension/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Rope_Overhead_Triceps_Extension/1.jpg"]}, "tri-cuerda": {"name": "Triceps Pushdown - Rope Attachment", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown_-_Rope_Attachment/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown_-_Rope_Attachment/1.jpg"]}, "fondos": {"name": "Dips - Chest Version", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dips_-_Chest_Version/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dips_-_Chest_Version/1.jpg"]}, "dominadas": {"name": "Pullups", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pullups/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pullups/1.jpg"]}, "remo-polea": {"name": "Seated Cable Rows", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Cable_Rows/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Cable_Rows/1.jpg"]}, "pullover": {"name": "Straight-Arm Pulldown", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Straight-Arm_Pulldown/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Straight-Arm_Pulldown/1.jpg"]}, "curl-inc": {"name": "Incline Dumbbell Curl", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Curl/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Dumbbell_Curl/1.jpg"]}, "curl-martillo": {"name": "Alternate Hammer Curl", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Alternate_Hammer_Curl/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Alternate_Hammer_Curl/1.jpg"]}, "antebrazo": {"name": "Cable Wrist Curl", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Wrist_Curl/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Wrist_Curl/1.jpg"]}, "crunch-polea": {"name": "Cable Crunch", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crunch/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crunch/1.jpg"]}, "sentadilla": {"name": "Barbell Squat", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Squat/1.jpg"]}, "pmr": {"name": "Romanian Deadlift", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Romanian_Deadlift/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Romanian_Deadlift/1.jpg"]}, "femoral-tum": {"name": "Lying Leg Curls", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Lying_Leg_Curls/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Lying_Leg_Curls/1.jpg"]}, "ext-cuad": {"name": "Leg Extensions", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leg_Extensions/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leg_Extensions/1.jpg"]}, "gemelo-pie": {"name": "Standing Barbell Calf Raise", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Barbell_Calf_Raise/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Barbell_Calf_Raise/1.jpg"]}, "plancha": {"name": "Plank", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Plank/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Plank/1.jpg"]}, "banca": {"name": "Barbell Bench Press - Medium Grip", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Barbell_Bench_Press_-_Medium_Grip/1.jpg"]}, "cruce-poleas": {"name": "Cable Crossover", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crossover/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Crossover/1.jpg"]}, "remo-maq": {"name": "Leverage High Row", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leverage_High_Row/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leverage_High_Row/1.jpg"]}, "jalon-neutro": {"name": "Close-Grip Front Lat Pulldown", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Close-Grip_Front_Lat_Pulldown/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Close-Grip_Front_Lat_Pulldown/1.jpg"]}, "curl-polea": {"name": "Standing Biceps Cable Curl", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Biceps_Cable_Curl/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Biceps_Cable_Curl/1.jpg"]}, "tri-recto": {"name": "Triceps Pushdown - V-Bar Attachment", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown_-_V-Bar_Attachment/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown_-_V-Bar_Attachment/1.jpg"]}, "bulgara": {"name": "Split Squat with Dumbbells", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Split_Squat_with_Dumbbells/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Split_Squat_with_Dumbbells/1.jpg"]}, "femoral-sent": {"name": "Seated Leg Curl", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Leg_Curl/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Leg_Curl/1.jpg"]}, "gemelo-sent": {"name": "Seated Calf Raise", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Calf_Raise/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Calf_Raise/1.jpg"]}, "aductores": {"name": "Thigh Adductor", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Thigh_Adductor/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Thigh_Adductor/1.jpg"]}, "elev-piernas": {"name": "Hanging Leg Raise", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Hanging_Leg_Raise/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Hanging_Leg_Raise/1.jpg"]}, "prensa": {"name": "Leg Press", "images": ["https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leg_Press/0.jpg", "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leg_Press/1.jpg"]}};
 /* Fotos que no son exactamente del ejercicio descrito: la base pública no tiene
    una foto de esa variante y la aclaramos en vez de hacerla pasar por exacta. */
@@ -286,7 +303,7 @@ E('prensa','Prensa 45°','Cuádriceps',[
 ];
 
 /* ---------- semilla: rutinas ---------- */
-function I(exerciseId,sets,repsMin,repsMax,rir,rest,ss,note){return {id:uid(),exerciseId,sets,repsMin,repsMax,rir:rir||'1-2',rest:rest||90,ss:ss||'',note:note||''};}
+function I(exerciseId,sets,repsMin,repsMax,rir?,rest?,ss?,note?){return {id:uid(),exerciseId,sets,repsMin,repsMax,rir:rir||'1-2',rest:rest||90,ss:ss||'',note:note||''};}
 function SEED_ROUTINES(){return [
  {id:'day-a',name:'A · Empuje',subtitle:'Pecho · Tríceps · Deltoides',mins:55,items:[
    I('press-inc',3,6,10,'1-2',150),I('press-maq',3,8,12,'1',90),I('press-mil',2,8,12,'1-2',90),
@@ -318,7 +335,7 @@ function SEED_ROUTINES(){return [
 
 function seedState(){return {
   v:1, exercises:SEED_EX.map(x=>{
-    const o=Object.assign({},x);
+    const o: any=Object.assign({},x);
     if(EX_IMAGES[x.id]) o.images=EX_IMAGES[x.id].images.slice();
     if(EX_PHOTO_NOTE[x.id]) o.photoNote=EX_PHOTO_NOTE[x.id];
     return o;
@@ -346,39 +363,14 @@ let view = state.active ? 'train' : 'train';
 const exById = id=>state.exercises.find(e=>e.id===id);
 const exName = id=>{const e=exById(id);return e?e.name:'(ejercicio borrado)';};
 const routineById = id=>state.routines.find(r=>r.id===id);
-const doneSessions = ()=>state.sessions.filter(s=>s.endedAt).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:(b.startedAt||0)-(a.startedAt||0));
-
-function lastPerf(exId,excludeSessionId){
-  for(const s of doneSessions()){
-    if(s.id===excludeSessionId) continue;
-    const en=(s.entries||[]).find(e=>e.exerciseId===exId);
-    if(en && en.sets.some(x=>x.done)) return {date:s.date, sets:en.sets.filter(x=>x.done)};
-  }
-  return null;
-}
-function bestE1RM(exId,excludeSessionId){
-  let best=0;
-  for(const s of state.sessions){
-    if(!s.endedAt || s.id===excludeSessionId) continue;
-    const en=(s.entries||[]).find(e=>e.exerciseId===exId); if(!en) continue;
-    en.sets.forEach(x=>{ if(x.done) best=Math.max(best,e1rm(num(x.w)||0,num(x.r)||0)); });
-  }
-  return best;
-}
-function sessionVolume(s){
-  let v=0,sets=0;
-  (s.entries||[]).forEach(en=>en.sets.forEach(x=>{ if(x.done){ sets++; v+=(num(x.w)||0)*(num(x.r)||0); }}));
-  return {v,sets};
-}
-function weeklySets(days){
-  const lim=new Date(Date.now()-days*864e5).toISOString().slice(0,10);
-  const out={}; GROUPS.forEach(g=>out[g]=0);
-  state.sessions.filter(s=>s.endedAt&&s.date>=lim).forEach(s=>{
-    (s.entries||[]).forEach(en=>{ const ex=exById(en.exerciseId); if(!ex) return;
-      const n=en.sets.filter(x=>x.done).length; out[ex.group]=(out[ex.group]||0)+n; });
-  });
-  return out;
-}
+/* Same call signatures the views have always used. The bodies moved to
+   lib/calc.ts so the maths can be tested without booting the app; here they
+   just hand over the current state. */
+const doneSessions = ()=>calcDoneSessions(state.sessions);
+const lastPerf = (exId,excludeSessionId?)=>calcLastPerf(state.sessions,exId,excludeSessionId);
+const bestE1RM = (exId,excludeSessionId?)=>calcBestE1RM(state.sessions,exId,excludeSessionId);
+const sessionVolume = s=>calcSessionVolume(s);
+const weeklySets = days=>calcWeeklySets(days,state.sessions,state.exercises);
 
 /* ---------- toast ---------- */
 let toastT=null;
@@ -389,12 +381,9 @@ function openSheet(html){ $('#sheetin').innerHTML=html; $('#sheet').classList.ad
 function closeSheet(){ $('#sheet').classList.remove('on'); $('#scrim').classList.remove('on'); }
 
 /* ---------- temporizador ---------- */
-const REST_WARN_AT=3;   // segundos antes del final para el aviso de "ya viene"
-const REST_WARN_MIN=8;  // descansos más cortos que esto no avisan: serían tres sonidos pegados
-const T={end:0,total:0,int:null,label:'',beeped:false,warned:false};
+const T: TimerState & { int: any } = {end:0,total:0,int:null,label:'',beeped:false,warned:false};
 function startTimer(sec,label){
-  T.total=sec; T.end=Date.now()+sec*1000; T.label=label||'Descanso'; T.beeped=false;
-  T.warned = sec<=REST_WARN_MIN;
+  Object.assign(T, newTimer(sec,label));
   beepStart();
   $('#timer').classList.add('on'); tick();
   clearInterval(T.int); T.int=setInterval(tick,200);
@@ -404,9 +393,8 @@ function stopTimer(){ clearInterval(T.int); T.int=null; $('#timer').classList.re
   try{ localStorage.removeItem('bitacora_timer'); }catch(e){} }
 function restoreTimer(){
   try{ const o=JSON.parse(localStorage.getItem('bitacora_timer')||'null'); if(!o) return;
-    const left=(o.end-Date.now())/1000; if(left<-90){ localStorage.removeItem('bitacora_timer'); return; }
-    T.total=o.total; T.end=o.end; T.label=o.label; T.beeped=left<=0;
-    T.warned = left<=REST_WARN_AT || o.total<=REST_WARN_MIN;
+    const t=restoredTimerState(o); if(!t){ localStorage.removeItem('bitacora_timer'); return; }
+    Object.assign(T, t);
     $('#timer').classList.add('on'); tick(); clearInterval(T.int); T.int=setInterval(tick,200);
   }catch(e){}
 }
@@ -419,18 +407,16 @@ async function keepAwake(on){
     if(!on && wakeLock){ await wakeLock.release(); wakeLock=null; }
   }catch(e){}
 }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden && state.active) keepAwake(true); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && state.active) void keepAwake(true); });
 function tick(){
-  const left=Math.round((T.end-Date.now())/1000);
-  const abs=Math.abs(left), mm=Math.floor(abs/60), ss=String(abs%60).padStart(2,'0');
-  $('#tnum').textContent=(left<0?'+':'')+mm+':'+ss;
-  $('#tnum').classList.toggle('done',left<=0);
+  const fr=timerFrame(T);
+  $('#tnum').textContent=fr.text;
+  $('#tnum').classList.toggle('done',fr.done);
   $('#tlbl').textContent=T.label;
-  const pct=left<=0?100:clamp(100-(left/T.total)*100,0,100);
-  const f=$('#tfill'); f.style.width=pct+'%'; f.classList.toggle('done',left<=0);
-  if(left>0 && left<=REST_WARN_AT && !T.warned){ T.warned=true; beepWarn(); }
-  if(left<=0 && !T.beeped){ T.beeped=true; beep(); }
-  if(left<-120) stopTimer();
+  const f=$('#tfill'); f.style.width=fr.pct+'%'; f.classList.toggle('done',fr.done);
+  if(fr.warn){ T.warned=true; beepWarn(); }
+  if(fr.finish){ T.beeped=true; beep(); }
+  if(fr.expired) stopTimer();
 }
 /* Los tres avisos del descanso tienen que distinguirse sin mirar la pantalla:
    arranca  = un tono grave y corto
@@ -453,7 +439,7 @@ function tones(seq,vib){
       o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0+n.d+.02);
       last=Math.max(last,n.t+n.d);
     });
-    setTimeout(()=>{try{ac.close()}catch(e){}},(last+1)*1000);
+    setTimeout(()=>{try{ void ac.close() }catch(e){}},(last+1)*1000);
   }catch(e){}
 }
 function beepStart(){ tones([{f:392,t:0,d:.16,g:.24}],[70]); }
@@ -475,9 +461,8 @@ function pinCheck(code){ const i=pinInfo(); return !!i && i.h===pinHash(code); }
 
 let lockMode='unlock'; // unlock | setup1 | setup2 | disable
 let lockTemp='';
-let lockAttempts=0;
 function showLock(mode){
-  lockMode=mode; lockAttempts=0;
+  lockMode=mode;
   if(mode!=='setup2') lockTemp='';
   const titles={unlock:'Ingresá tu PIN',setup1:'Elegí un PIN (4 a 8 dígitos)',setup2:'Repetí el PIN',disable:'Ingresá tu PIN para desactivar'};
   $('#lockTitle').textContent=titles[mode];
@@ -492,7 +477,7 @@ function lockSubmit(){
   if(val.length<4){ $('#lockMsg').textContent='Mínimo 4 dígitos.'; return; }
   if(lockMode==='unlock'){
     if(pinCheck(val)){ hideLock(); maybeStartTour(); }
-    else{ lockAttempts++; $('#lockMsg').textContent='PIN incorrecto.'; $('#lockInput').value=''; }
+    else{ $('#lockMsg').textContent='PIN incorrecto.'; $('#lockInput').value=''; }
     return;
   }
   if(lockMode==='setup1'){ lockTemp=val; showLock('setup2'); return; }
@@ -620,7 +605,7 @@ let exdbExId=null;       // solo usado en modo 'replace-ex'
 let exdbEntryId=null;    // solo usado en modo 'session-item'
 let exdbPending=null;    // ejercicio elegido en 'session-item', esperando el alcance
 function alreadyImported(sourceId){ return state.exercises.find(x=>x.sourceId===sourceId); }
-function sheetExDbSearch(mode, ctx){
+function sheetExDbSearch(mode?, ctx?){
   exdbMode=mode||'form'; exdbRoutineId=null; exdbItemId=null; exdbExId=null; exdbEntryId=null; exdbPending=null;
   if(exdbMode==='routine') exdbRoutineId=ctx||null;
   if(exdbMode==='replace-item'){ exdbRoutineId=(ctx&&ctx.routineId)||null; exdbItemId=(ctx&&ctx.itemId)||null; }
@@ -689,7 +674,7 @@ async function pickExdb(id){
     const created=quickImport(e);
     save(true);
     toast(before?'Ya estaba en tu biblioteca':'Agregado: '+created.name);
-    runExdbSearch($('#exdbQ').value); // refresca la lista para marcar "En tu biblioteca"
+    void runExdbSearch($('#exdbQ').value); // refresca la lista para marcar "En tu biblioteca"
     return;
   }
   if(exdbMode==='routine'){
@@ -784,7 +769,7 @@ function render(){
   el.innerHTML=(map[view]||viewTrain)();
   window.scrollTo({top:0});
 }
-function header(eyebrow,title,right){
+function header(eyebrow,title,right?){
   return `<header class="top"><div class="wrap"><div class="topbar">
     <div class="grow"><div class="eyebrow">${esc(eyebrow)}</div><div class="h1">${esc(title)}</div></div>
     ${right||''}</div></div></header>`;
@@ -999,7 +984,7 @@ function sheetGuide(id){
       ${hist.map(h=>`<tr><td>${dnice(h.date)}</td><td>${fmt(h.bw)}×${h.br}</td><td class="n">${fmt(Math.round(h.e))}</td></tr>`).join('')}</table>`:''}
     <button class="btn block" data-act="x-edit" data-id="${e.id}" style="margin-top:16px">Editar este ejercicio</button>`);
 }
-function sheetExercise(id, prefill){
+function sheetExercise(id, prefill?){
   const base = id?exById(id):{id:'',name:'',group:'Pecho',cues:[],err:'',tip:'',images:[]};
   const e = prefill ? Object.assign({}, base, prefill, {id: base.id}) : base;
   const photos=(e.images&&e.images.length)?`<div class="row" style="gap:8px;margin:8px 0;overflow-x:auto" data-photos='${esc(JSON.stringify(e.images))}'>
@@ -1117,7 +1102,7 @@ function progVolume(){
 function weekBars(){
   const weeks=[];
   for(let i=7;i>=0;i--){
-    const end=new Date(Date.now()-i*7*864e5), start=new Date(end-7*864e5);
+    const end=new Date(Date.now()-i*7*864e5), start=new Date(+end-7*864e5);
     const a=start.toISOString().slice(0,10), b=end.toISOString().slice(0,10);
     let v=0,n=0;
     state.sessions.filter(s=>s.endedAt&&s.date>a&&s.date<=b).forEach(s=>{const r=sessionVolume(s);v+=r.v;n++;});
@@ -1273,14 +1258,14 @@ function viewSettings(){
    CUENTA Y SINCRONIZACIÓN (interfaz)
    ========================================================= */
 function syncBadge(){
-  const S=window.Sync?Sync.state:{status:'unconfigured'};
+  const S: any=window.Sync?Sync.state:{status:'unconfigured'};
   const map={ ok:['ok','Al día'], syncing:['sig','Sincronizando…'], offline:['','Sin conexión'],
               error:['','Error'], local:['','Solo este dispositivo'], unconfigured:['','Solo este dispositivo'] };
   const [cls,txt]=map[S.status]||['',''];
   return `<span class="chip ${cls}">${esc(S.msg||txt)}</span>`;
 }
 function accountCard(){
-  const S=window.Sync?Sync.state:{status:'unconfigured'};
+  const S: any=window.Sync?Sync.state:{status:'unconfigured'};
   if(S.status==='unconfigured'){
     return `<div class="card">
       <div class="eyebrow">Cuenta</div>
@@ -1346,7 +1331,7 @@ function startSession(routineId){
     entries:r.items.map(it=>({ id:uid(), exerciseId:it.exerciseId,
       target:{sets:it.sets,repsMin:it.repsMin,repsMax:it.repsMax,rir:it.rir,rest:it.rest,ss:it.ss},
       sets:Array.from({length:it.sets},()=>({w:'',r:'',rir:'',done:false})) })) };
-  save(true); view='train'; keepAwake(true); render();
+  save(true); view='train'; void keepAwake(true); render();
 }
 function finishSession(){
   const s=state.active; if(!s) return;
@@ -1360,7 +1345,7 @@ function finishSession(){
     let cur=0; en.sets.forEach(x=>{ if(x.done) cur=Math.max(cur,e1rm(num(x.w)||0,num(x.r)||0)); });
     if(best>0 && cur>best*1.001) prs.push(exName(en.exerciseId));
   });
-  state.sessions.push(s); state.active=null; save(true); stopTimer(); keepAwake(false); render();
+  state.sessions.push(s); state.active=null; save(true); stopTimer(); void keepAwake(false); render();
   if(window.Sync) Sync.schedule(800);
   openSheet(`<div class="h2">Sesión guardada</div>
     <div class="row" style="gap:8px;margin:12px 0"><span class="chip">${r.sets} series</span><span class="chip">${fmt(Math.round(r.v))} kg movidos</span><span class="chip">${esc(s.dur)}</span></div>
@@ -1431,7 +1416,7 @@ function dl(blob,name){
 /* =========================================================
    EVENTOS
    ========================================================= */
-document.addEventListener('click',ev=>{
+document.addEventListener('click',(ev: any)=>{
   const row=ev.target.closest('.setrow');
   const el=ev.target.closest('[data-act]'); if(!el) return;
   const a=el.dataset.act;
@@ -1522,7 +1507,7 @@ document.addEventListener('click',ev=>{
     save(true); render(); toast('Rutina duplicada'); return; }
   if(a==='r-del'){ if(!confirm('¿Borrar esta rutina? El historial no se toca.')) return;
     state.routines=state.routines.filter(x=>x.id!==el.dataset.id); save(true); render(); return; }
-  if(a==='ri-add'){ const f=$('#rform'); const items=collectItems(); items.push({id:uid(),exerciseId:state.exercises[0].id,sets:3,repsMin:8,repsMax:12,rir:'1-2',rest:90,ss:''});
+  if(a==='ri-add'){ const items=collectItems(); items.push({id:uid(),exerciseId:state.exercises[0].id,sets:3,repsMin:8,repsMax:12,rir:'1-2',rest:90,ss:''});
     stashRoutine(items); return; }
   if(a==='ri-add-db'){
     const f=$('#rform'); let rid=f.dataset.id;
@@ -1568,7 +1553,7 @@ document.addEventListener('click',ev=>{
   if(a==='x-new'){ sheetExercise(null); return; }
   if(a==='x-search-db'){ sheetExDbSearch(); return; }
   if(a==='x-replace-db'){ sheetExDbSearch('replace-ex', el.dataset.id); return; }
-  if(a==='exdb-pick'){ pickExdb(el.dataset.id); return; }
+  if(a==='exdb-pick'){ void pickExdb(el.dataset.id); return; }
   if(a==='x-edit'){ sheetExercise(el.dataset.id); return; }
   if(a==='x-save'){
     const f=$('#xform'), id=f.dataset.id;
@@ -1599,7 +1584,7 @@ document.addEventListener('click',ev=>{
     const s=state.sessions.find(x=>x.id===el.dataset.id);
     state.active={id:uid(),routineId:s.routineId,name:s.name,date:today(),startedAt:Date.now(),notes:'',
       entries:s.entries.map(en=>({id:uid(),exerciseId:en.exerciseId,target:en.target,
-        sets:en.sets.map(x=>({w:'',r:'',rir:'',done:false}))}))};
+        sets:en.sets.map(()=>({w:'',r:'',rir:'',done:false}))}))};
     save(true); closeSheet(); view='train'; render(); return;
   }
   if(a==='bw-add'){
@@ -1647,14 +1632,11 @@ document.addEventListener('click',ev=>{
     Sync.reset(em).then(()=>toast('Te mandamos un mail para recuperarla')).catch(authErr); return;
   }
   if(a==='auth-out'){ if(!confirm('Se cierra la sesión. Los datos quedan en la nube y también en este dispositivo.')) return;
-    Sync.signOut().then(()=>{ toast('Sesión cerrada'); render(); }); return; }
-  if(a==='sync-now'){ Sync.run('manual'); toast('Sincronizando…'); return; }
+    void Sync.signOut().then(()=>{ toast('Sesión cerrada'); render(); }); return; }
+  if(a==='sync-now'){ void Sync.run('manual'); toast('Sincronizando…'); return; }
   if(a==='update'){
-    if('serviceWorker' in navigator){
-      navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.update())))
-        .then(()=>caches.keys()).then(ks=>Promise.all(ks.map(k=>caches.delete(k))))
-        .then(()=>{ toast('Actualizando…'); setTimeout(()=>location.reload(true),600); });
-    } else location.reload();
+    toast('Actualizando…');
+    setTimeout(()=>{ void checkForUpdate(); },600);
     return;
   }
   if(a==='pin-enable'){ showLock('setup1'); return; }
@@ -1703,12 +1685,11 @@ function collectItems(){
 function stashRoutine(items){
   const f=$('#rform'), id=f.dataset.id;
   const name=$('[data-k=name]',f).value, subtitle=$('[data-k=subtitle]',f).value;
-  const tmp={id,name,subtitle,items};
   if(id){ const r=routineById(id); r.name=name; r.subtitle=subtitle; r.items=items; save(true); sheetRoutine(id); }
   else{ const nid=uid(); state.routines.push({id:nid,name,subtitle,items}); save(true); sheetRoutine(nid); }
 }
 
-document.addEventListener('change',ev=>{
+document.addEventListener('change',(ev: any)=>{
   const el=ev.target, a=el.dataset.act;
   if(a==='pex'){ state.ui.progressEx=el.value; save(); render(); return; }
   if(a==='exq'){ return; }
@@ -1717,7 +1698,7 @@ document.addEventListener('change',ev=>{
   const row=el.closest('.setrow'); if(row && el.tagName==='INPUT'){ readSetRow(row); save(); updateStats(); }
   if(el.id==='fileIn' && el.files && el.files[0]){
     const fr=new FileReader();
-    fr.onload=()=>{ try{ const o=JSON.parse(fr.result);
+    fr.onload=()=>{ try{ const o=JSON.parse(fr.result as string);
       if(!o.exercises||!o.routines) throw 0;
       if(!confirm('Reemplaza los datos actuales por los del archivo. ¿Seguir?')) return;
       state=o; state.settings=Object.assign({rest:90,sound:true,vibrate:true,bar:20,autoTimer:true,wake:true,theme:'dark',accent:'mostaza'},state.settings||{});
@@ -1726,7 +1707,7 @@ document.addEventListener('change',ev=>{
     fr.readAsText(el.files[0]); el.value='';
   }
 });
-document.addEventListener('input',ev=>{
+document.addEventListener('input',(ev: any)=>{
   const el=ev.target;
   if(el.dataset.act==='exq'){ state.ui.exq=el.value; const pos=el.selectionStart; render();
     const n=$('[data-act=exq]'); if(n){ n.focus(); n.setSelectionRange(pos,pos); } }
@@ -1833,7 +1814,7 @@ function tourGoTo(idx, dir){
   const step=TOUR_STEPS[idx];
   if(step.view && step.view!==view){
     const btn=document.querySelector('.nb[data-v="'+step.view+'"]');
-    if(btn) btn.click(); else closeSheet();
+    if(btn) (btn as HTMLElement).click(); else closeSheet();
   } else closeSheet();
   if(step.before) step.before();
   const target = step.selector ? tourResolveTarget(step) : null;
@@ -1896,13 +1877,11 @@ function tourLayout(rect){
 /* ---------- arranque ---------- */
 applyTheme();
 restoreTimer();
-if(state.active) keepAwake(true);
+if(state.active) void keepAwake(true);
 render();
 if(pinIsSet()) showLock('unlock'); else maybeStartTour();
 if(window.Sync){
   Sync.on(()=>{ if(view==='settings') render(); });
-  Sync.init();
+  void Sync.init();
 }
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-}
+registerServiceWorker();

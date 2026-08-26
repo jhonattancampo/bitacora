@@ -35,7 +35,7 @@
    deja S.busy en true, con lo que "Sincronizar ahora" deja de hacer
    nada para siempre.
    ========================================================= */
-const Sync = (function () {
+const Sync: SyncApi = (function () {
   "use strict";
 
   const SHADOW_KEY = "bitacora_shadow_v2";
@@ -59,11 +59,11 @@ const Sync = (function () {
      y la UI queda pensando que todavía está en curso. Acá cualquier demora
      se convierte en un error de verdad, visible y reintentable. */
   const NET_TIMEOUT = 45000;
-  function withTimeout(promise, label, ms) {
+  function withTimeout(promise, label, ms?) {
     let t = null;
     const limit = new Promise((_, reject) => {
       t = setTimeout(() => {
-        const e = new Error(label + ": la nube no respondió en " + Math.round((ms || NET_TIMEOUT) / 1000) + "s");
+        const e: any = new Error(label + ": la nube no respondió en " + Math.round((ms || NET_TIMEOUT) / 1000) + "s");
         e.code = "sync/timeout";
         reject(e);
       }, ms || NET_TIMEOUT);
@@ -88,9 +88,9 @@ const Sync = (function () {
     const v = (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.sdkVersion) || "12.17.1";
     const base = "https://www.gstatic.com/firebasejs/" + v + "/";
     const [app, auth, fs] = await Promise.all([
-      import(base + "firebase-app.js"),
-      import(base + "firebase-auth.js"),
-      import(base + "firebase-firestore.js"),
+      import(/* @vite-ignore */ base + "firebase-app.js"),
+      import(/* @vite-ignore */ base + "firebase-auth.js"),
+      import(/* @vite-ignore */ base + "firebase-firestore.js"),
     ]);
     mods = { app, auth, fs };
     return mods;
@@ -158,7 +158,7 @@ const Sync = (function () {
   }
 
   /* ---------- sincronización ---------- */
-  async function run(reason) {
+  async function run(_reason?) {
     if (!S.user || S.busy) return;
     if (!navigator.onLine) { setStatus("offline", "Sin conexión — se sincroniza al volver"); return; }
     S.busy = true; setStatus("syncing", "Sincronizando…");
@@ -346,7 +346,7 @@ const Sync = (function () {
       f.m.auth.onAuthStateChanged(f.auth, u => {
         S.user = u ? { uid: u.uid, email: u.email } : null;
         S.ready = true;
-        if (u) { setStatus("syncing", "Conectando…"); run("login"); }
+        if (u) { setStatus("syncing", "Conectando…"); void run("login"); }
         else { setStatus("local", "Sin sesión iniciada"); }
         emit();
       });
@@ -382,12 +382,19 @@ const Sync = (function () {
   window.addEventListener("online", () => schedule(1500));
   document.addEventListener("visibilitychange", () => { if (!document.hidden) schedule(1000); });
 
-  // punto de entrada para pruebas automatizadas (no se usa en producción)
-  function _inject(backend, user) { fb = backend; S.user = user; }
+  // puntos de entrada para pruebas automatizadas (no se usan en producción)
+  function _inject(backend, user) { fb = backend; S.user = user; bootP = null; }
+  // stamp() normalmente lo dispara schedule() desde el save de la app; las
+  // pruebas lo necesitan sin arrastrar el temporizador.
+  function _stamp() { stamp(); }
 
   // última vez que este dispositivo trajo datos de la nube (diagnóstico en Ajustes)
   function lastPull() { return Number(localStorage.getItem("bitacora_lastpull") || 0) || null; }
 
-  return { init, on, run, schedule, signIn, signUp, signOut, reset, signInGoogle, configured, lastPull, state: S, _inject };
+  return { init, on, run, schedule, signIn, signUp, signOut, reset, signInGoogle, configured, lastPull, state: S, _inject, _stamp };
 })();
 window.Sync = Sync;
+
+// app.ts still reaches Sync through window, exactly as it did with the two
+// <script> tags. The named export exists so the tests can drive it directly.
+export { Sync };

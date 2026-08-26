@@ -22,3 +22,7 @@ bitacora-*.csv
 
 # Config local del editor / preview
 .claude/
+
+# Salida del build (se genera con `npm run build`, no se commitea)
+dist/
+dev-dist/
