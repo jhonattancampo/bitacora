@@ -22,7 +22,7 @@
   <div class="tfill" id="tfill"></div>
   <div class="tinner">
     <div class="tnum mono" id="tnum">0:00</div>
-    <div class="grow"><div class="tlbl" id="tlbl">Descanso</div></div>
+    <div class="flex-1 min-w-0"><div class="tlbl" id="tlbl">Descanso</div></div>
     <button class="btn sm" data-act="t-add">+15</button>
     <button class="btn sm" data-act="t-sub">−15</button>
     <button class="btn sm primary" data-act="t-skip">Listo</button>
@@ -61,7 +61,7 @@
     <div class="small" id="tourText" style="margin-top:6px"></div>
     <div class="row" style="margin-top:16px;gap:8px;flex-wrap:wrap">
       <button class="btn sm ghost" data-act="tour-skip">Saltar tutorial</button>
-      <div class="grow"></div>
+      <div class="flex-1 min-w-0"></div>
       <button class="btn sm" data-act="tour-prev">Atrás</button>
       <button class="btn sm primary" data-act="tour-next">Siguiente</button>
     </div>
@@ -73,7 +73,7 @@
     <div class="h2" id="lockTitle" style="text-align:center">Ingresá tu PIN</div>
     <div id="lockMsg" class="tiny dim" style="text-align:center;margin-top:4px;min-height:16px"></div>
     <input type="password" id="lockInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" style="text-align:center;letter-spacing:.4em;font-size:22px;margin-top:16px">
-    <button class="btn block primary" id="lockGo" style="margin-top:12px">Continuar</button>
+    <button class="btn primary w-full" id="lockGo" style="margin-top:12px">Continuar</button>
   </div>
 </div>
 <!-- config.js stays a plain script on purpose: it is the one file meant to be

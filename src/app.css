@@ -133,159 +133,189 @@
   --tracking-label: .14em;
   --tracking-nav: .04em;
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:16px;line-height:1.45}
-body{padding-bottom:calc(78px + env(safe-area-inset-bottom));overscroll-behavior-y:contain}
-/* line-height:normal es una restauracion, no una decision nueva: el preflight de
-   Tailwind hace que los controles hereden el 1.45 del body, y eso agranda cada
-   boton ~4px y la barra de navegacion ~3px. Antes heredaban el `normal` del
-   navegador. Sin esta linea, toda la app cambia de altura. */
-button,input,select,textarea{font-family:inherit;font-size:16px;color:inherit;line-height:normal}
-button{cursor:pointer;border:none;background:none;padding:0}
-a{color:var(--sig)}
-.wrap{max-width:760px;margin:0 auto;padding:0 14px}
 
-/* ---------- tipografía utilitaria ---------- */
-.eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim2);font-weight:700}
-.h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:2px 0 0}
-.h2{font-size:18px;font-weight:800;letter-spacing:-.01em;margin:0}
-.h3{font-size:14px;font-weight:700;margin:0}
-.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
-.dim{color:var(--dim)}
-.small{font-size:13px}
-.tiny{font-size:11.5px}
+/* ============================================================
+   ORDEN DE CAPAS — leer antes de mover una regla de lugar
+   ------------------------------------------------------------
+   Tailwind declara `@layer theme, base, components, utilities`.
+   Lo que queda FUERA de toda capa le gana a TODAS ellas, utilities incluida.
+   Si el CSS de la app viviera sin encapar, `.row{gap:10px}` le ganaria a
+   `gap-1.5` y las utilidades en los templates no harian absolutamente nada.
 
-/* ---------- header ---------- */
-header.top{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,var(--bg) 72%,rgba(14,19,22,0));padding:14px 0 10px}
-.topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
-.brand{display:flex;align-items:center;gap:9px}
-.mark{width:26px;height:26px;border-radius:6px;background:var(--sig);position:relative;flex:0 0 auto}
-.mark:before,.mark:after{content:"";position:absolute;background:var(--bg);left:5px;right:5px;height:3px;border-radius:2px}
-.mark:before{top:8px}.mark:after{bottom:8px}
+   Por eso: resets en `base`, componentes en `components`. Asi una utilidad
+   en un template siempre puede corregir a su componente, que es justamente
+   el punto de usar Tailwind aca.
+   ============================================================ */
+@layer base {
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:16px;line-height:1.45}
+  body{padding-bottom:calc(78px + env(safe-area-inset-bottom));overscroll-behavior-y:contain}
+  /* line-height:normal es una restauracion, no una decision nueva: el preflight de
+     Tailwind hace que los controles hereden el 1.45 del body, y eso agranda cada
+     boton ~4px y la barra de navegacion ~3px. Antes heredaban el `normal` del
+     navegador. Sin esta linea, toda la app cambia de altura. */
+  button,input,select,textarea{font-family:inherit;font-size:16px;color:inherit;line-height:normal}
+  button{cursor:pointer;border:none;background:none;padding:0}
+  a{color:var(--sig)}
+}
 
-/* ---------- cards ---------- */
-.card{background:var(--p1);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:10px 0}
-.card.flat{background:transparent;border-style:dashed}
-.row{display:flex;align-items:center;gap:10px}
-.between{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.grow{flex:1;min-width:0}
-.stack>*+*{margin-top:8px}
-.trunc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-hr.sep{border:none;border-top:1px solid var(--line);margin:12px 0}
+@layer components {
+  .wrap{max-width:760px;margin:0 auto;padding:0 14px}
 
-/* ---------- botones ---------- */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 15px;border-radius:10px;background:var(--p2);border:1px solid var(--line);font-weight:700;font-size:14px;letter-spacing:-.01em}
-.btn:active{transform:translateY(1px)}
-.btn.primary{background:var(--sig);color:var(--sig-ink);border-color:var(--sig)}
-.btn.ghost{background:transparent}
-.btn.danger{color:var(--hot-text);border-color:var(--hot-soft-border)}
-.btn.block{width:100%}
-.btn.sm{padding:7px 11px;font-size:13px;border-radius:9px}
-.btn.icon{width:38px;height:38px;padding:0;flex:0 0 auto}
-.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:99px;background:var(--p2);border:1px solid var(--line);font-size:11.5px;font-weight:700;color:var(--dim)}
-.chip.sig{color:var(--sig-text);border-color:var(--sig-soft-border);background:var(--sig-soft-bg)}
-.chip.ok{color:var(--ok-text);border-color:var(--ok-soft-border);background:var(--ok-soft-bg)}
+  /* ---------- tipografía utilitaria ---------- */
+  .eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim2);font-weight:700}
+  .h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:2px 0 0}
+  .h2{font-size:18px;font-weight:800;letter-spacing:-.01em;margin:0}
+  .h3{font-size:14px;font-weight:700;margin:0}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .dim{color:var(--dim)}
+  .small{font-size:13px}
+  .tiny{font-size:11.5px}
 
-/* ---------- inputs ---------- */
-input[type=text],input[type=number],input[type=date],select,textarea{
-  width:100%;background:var(--p2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
-input:focus,select:focus,textarea:focus{border-color:var(--sig);box-shadow:0 0 0 2px rgba(255,204,29,.15)}
-textarea{resize:vertical;min-height:70px;line-height:1.5}
-label.f{display:block;margin:10px 0 0}
-label.f .eyebrow{display:block;margin-bottom:5px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.switch{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
-.tog{width:48px;height:28px;border-radius:99px;background:var(--p3);position:relative;flex:0 0 auto;transition:background .15s}
-.tog i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:99px;background:var(--dim);transition:.15s}
-.tog.on{background:var(--sig-soft-bg)}.tog.on i{left:23px;background:var(--sig)}
+  /* ---------- header ---------- */
+  header.top{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,var(--bg) 72%,rgba(14,19,22,0));padding:14px 0 10px}
+  .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+  .brand{display:flex;align-items:center;gap:9px}
+  .mark{width:26px;height:26px;border-radius:6px;background:var(--sig);position:relative;flex:0 0 auto}
+  .mark:before,.mark:after{content:"";position:absolute;background:var(--bg);left:5px;right:5px;height:3px;border-radius:2px}
+  .mark:before{top:8px}.mark:after{bottom:8px}
 
-/* ---------- serie / entrenamiento ---------- */
-.exhead{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
-.exnum{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--bg);background:var(--dim);width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:2px}
-.exnum.ss{background:var(--sig)}
-.setgrid{display:grid;grid-template-columns:26px 1fr 1fr 54px 44px;gap:7px;align-items:center}
-.setgrid .lbl{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim2);font-weight:700;text-align:center}
-.setrow{margin-top:7px}
-.setno{font-family:var(--mono);font-size:12px;color:var(--dim2);text-align:center;font-weight:700}
-.setrow input{padding:11px 6px;text-align:center;font-family:var(--mono);font-weight:700;font-size:16px}
-.setrow input::placeholder{color:var(--dim2);font-weight:400}
-/* preflight pintaria los placeholders con currentColor al 50%; la app ya tenia
-   su propio gris para esto y lo mantenemos en todos los campos */
-input::placeholder,textarea::placeholder{color:var(--dim2);opacity:1}
-.check{width:44px;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--p2);display:flex;align-items:center;justify-content:center;color:var(--dim2)}
-.setrow.done input{background:var(--ok-soft-bg);border-color:var(--ok-soft-border);color:var(--ok-text)}
-.setrow.done .check{background:var(--ok);border-color:var(--ok);color:var(--sig-ink)}
-.setrow.pr .check{background:var(--sig);border-color:var(--sig);color:var(--sig-ink)}
-.prevline{font-size:11.5px;color:var(--dim2);font-family:var(--mono);margin-top:6px}
+  /* ---------- cards ---------- */
+  .card{background:var(--p1);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:10px 0}
+  .card.flat{background:transparent;border-style:dashed}
+  .row{display:flex;align-items:center;gap:10px}
+  .between{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .stack>*+*{margin-top:8px}
+  .trunc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  hr.sep{border:none;border-top:1px solid var(--line);margin:12px 0}
 
-/* ---------- timer ---------- */
-#timer{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));z-index:45;display:none}
-#timer.on{display:block}
-.tbar{max-width:760px;margin:0 auto;background:var(--p1);border:1px solid var(--line);border-bottom:none;border-radius:14px 14px 0 0;overflow:hidden;position:relative}
-.tfill{position:absolute;inset:0 auto 0 0;background:var(--sig-soft-bg);transition:width .25s linear}
-.tfill.done{background:var(--hot-soft-bg)}
-.tinner{position:relative;display:flex;align-items:center;gap:8px;padding:9px 12px}
-.tnum{font-family:var(--mono);font-size:30px;font-weight:800;letter-spacing:-.03em;color:var(--sig);min-width:86px}
-.tnum.done{color:var(--hot)}
-.tlbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:700;line-height:1.25}
+  /* ---------- botones ---------- */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 15px;border-radius:10px;background:var(--p2);border:1px solid var(--line);font-weight:700;font-size:14px;letter-spacing:-.01em}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--sig);color:var(--sig-ink);border-color:var(--sig)}
+  .btn.ghost{background:transparent}
+  .btn.danger{color:var(--hot-text);border-color:var(--hot-soft-border)}
+    .btn.sm{padding:7px 11px;font-size:13px;border-radius:9px}
+  .btn.icon{width:38px;height:38px;padding:0;flex:0 0 auto}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:99px;background:var(--p2);border:1px solid var(--line);font-size:11.5px;font-weight:700;color:var(--dim)}
+  .chip.sig{color:var(--sig-text);border-color:var(--sig-soft-border);background:var(--sig-soft-bg)}
+  .chip.ok{color:var(--ok-text);border-color:var(--ok-soft-border);background:var(--ok-soft-bg)}
 
-/* ---------- nav ---------- */
-nav{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--p1);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-.navin{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
-.nb{padding:9px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--dim2);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-.nb svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.nb.on{color:var(--sig)}
+  /* ---------- inputs ---------- */
+  /* La lista incluye `password` a proposito. Antes no estaba, y el campo del PIN
+     se dibujaba con el estilo nativo del navegador: una caja blanca con borde
+     inset, en una app de fondo grafito. El preflight de Tailwind saca ese estilo
+     nativo, asi que sin esta linea el campo del PIN queda INVISIBLE: fondo
+     transparente, sin borde, sobre el fondo oscuro. Se probo: no se ve nada. */
+  input[type=text],input[type=password],input[type=number],input[type=date],
+  input[type=email],input[type=search],input[type=tel],input[type=url],select,textarea{
+    width:100%;background:var(--p2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+  /* El anillo de foco tenia rgba(255,204,29,.15) fijo — el mostaza — asi que en
+     verde, fucsia, violeta, celeste y coral el borde cambiaba de color pero el
+     halo seguia siendo amarillo. Derivarlo de --sig lo hace seguir al acento. */
+  input:focus,select:focus,textarea:focus{border-color:var(--sig);
+    box-shadow:0 0 0 2px color-mix(in srgb, var(--sig) 15%, transparent)}
+  textarea{resize:vertical;min-height:70px;line-height:1.5}
+  /* preflight incluye optgroup en su reset de fuente y le saca la negrita que
+     trae el navegador. En los desplegables de ejercicios agrupados por musculo
+     esa negrita es la que separa el grupo de sus opciones. */
+  optgroup{font-weight:700}
+  label.f{display:block;margin:10px 0 0}
+  label.f .eyebrow{display:block;margin-bottom:5px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .switch{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+  .tog{width:48px;height:28px;border-radius:99px;background:var(--p3);position:relative;flex:0 0 auto;transition:background .15s}
+  .tog i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:99px;background:var(--dim);transition:.15s}
+  .tog.on{background:var(--sig-soft-bg)}.tog.on i{left:23px;background:var(--sig)}
 
-/* ---------- sheet / modal ---------- */
-#scrim{position:fixed;inset:0;background:var(--scrim);z-index:60;display:none}
-#scrim.on{display:block}
-#sheet{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--p1);border-top:1px solid var(--line);border-radius:16px 16px 0 0;max-height:88vh;overflow:auto;display:none;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
-#sheet.on{display:block}
-.sheetin{max-width:760px;margin:0 auto;padding:6px 16px 10px}
-.handle{width:38px;height:4px;border-radius:99px;background:var(--p3);margin:8px auto 12px}
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:90;background:var(--sig);color:var(--sig-ink);font-weight:800;font-size:13.5px;padding:10px 16px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:88vw;text-align:center}
-#toast.on{opacity:1;transform:translateX(-50%) translateY(-6px)}
+  /* ---------- serie / entrenamiento ---------- */
+  .exhead{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+  .exnum{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--bg);background:var(--dim);width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:2px}
+  .exnum.ss{background:var(--sig)}
+  .setgrid{display:grid;grid-template-columns:26px 1fr 1fr 54px 44px;gap:7px;align-items:center}
+  .setgrid .lbl{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim2);font-weight:700;text-align:center}
+  .setrow{margin-top:7px}
+  .setno{font-family:var(--mono);font-size:12px;color:var(--dim2);text-align:center;font-weight:700}
+  .setrow input{padding:11px 6px;text-align:center;font-family:var(--mono);font-weight:700;font-size:16px}
+  .setrow input::placeholder{color:var(--dim2);font-weight:400}
+  /* preflight pintaria los placeholders con currentColor al 50%; la app ya tenia
+     su propio gris para esto y lo mantenemos en todos los campos */
+  input::placeholder,textarea::placeholder{color:var(--dim2);opacity:1}
+  .check{width:44px;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--p2);display:flex;align-items:center;justify-content:center;color:var(--dim2)}
+  .setrow.done input{background:var(--ok-soft-bg);border-color:var(--ok-soft-border);color:var(--ok-text)}
+  .setrow.done .check{background:var(--ok);border-color:var(--ok);color:var(--sig-ink)}
+  .setrow.pr .check{background:var(--sig);border-color:var(--sig);color:var(--sig-ink)}
+  .prevline{font-size:11.5px;color:var(--dim2);font-family:var(--mono);margin-top:6px}
 
-/* ---------- listas ---------- */
-.li{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--line)}
-.li:last-child{border-bottom:none}
-.bar{height:7px;border-radius:99px;background:var(--p3);overflow:hidden;position:relative}
-.bar i{display:block;height:100%;background:var(--sig);border-radius:99px}
-.bar i.low{background:var(--cool)}.bar i.hi{background:var(--hot)}
-.zone{position:absolute;top:0;bottom:0;border-left:1px solid rgba(234,240,237,.35);border-right:1px solid rgba(234,240,237,.35)}
-table.t{width:100%;border-collapse:collapse;font-size:13.5px}
-table.t th{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim2);text-align:left;padding:0 6px 7px;font-weight:700}
-table.t td{padding:8px 6px;border-top:1px solid var(--line);font-family:var(--mono)}
-table.t td.n{text-align:right}
-.cue{display:flex;gap:9px;padding:7px 0;font-size:14px}
-.cue b{font-family:var(--mono);color:var(--sig);font-size:12px;flex:0 0 auto;padding-top:2px}
-.warn{background:var(--hot-soft-bg);border:1px solid var(--hot-soft-border);color:var(--hot-text);border-radius:10px;padding:10px 12px;font-size:13px}
-.note{background:var(--ok-soft-bg);border:1px solid var(--ok-soft-border);color:var(--tx);border-radius:10px;padding:10px 12px;font-size:13px}
-.empty{text-align:center;padding:34px 16px;color:var(--dim)}
-.ssgroup{border-left:2px solid var(--sig);padding-left:10px;margin-left:-1px}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+  /* ---------- timer ---------- */
+  #timer{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));z-index:45;display:none}
+  #timer.on{display:block}
+  .tbar{max-width:760px;margin:0 auto;background:var(--p1);border:1px solid var(--line);border-bottom:none;border-radius:14px 14px 0 0;overflow:hidden;position:relative}
+  .tfill{position:absolute;inset:0 auto 0 0;background:var(--sig-soft-bg);transition:width .25s linear}
+  .tfill.done{background:var(--hot-soft-bg)}
+  .tinner{position:relative;display:flex;align-items:center;gap:8px;padding:9px 12px}
+  .tnum{font-family:var(--mono);font-size:30px;font-weight:800;letter-spacing:-.03em;color:var(--sig);min-width:86px}
+  .tnum.done{color:var(--hot)}
+  .tlbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:700;line-height:1.25}
+
+  /* ---------- nav ---------- */
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--p1);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  .navin{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+  .nb{padding:9px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--dim2);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .nb svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .nb.on{color:var(--sig)}
+
+  /* ---------- sheet / modal ---------- */
+  #scrim{position:fixed;inset:0;background:var(--scrim);z-index:60;display:none}
+  #scrim.on{display:block}
+  #sheet{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--p1);border-top:1px solid var(--line);border-radius:16px 16px 0 0;max-height:88vh;overflow:auto;display:none;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+  #sheet.on{display:block}
+  .sheetin{max-width:760px;margin:0 auto;padding:6px 16px 10px}
+  .handle{width:38px;height:4px;border-radius:99px;background:var(--p3);margin:8px auto 12px}
+  #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:90;background:var(--sig);color:var(--sig-ink);font-weight:800;font-size:13.5px;padding:10px 16px;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:88vw;text-align:center}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(-6px)}
+
+  /* ---------- listas ---------- */
+  .li{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .li:last-child{border-bottom:none}
+  .bar{height:7px;border-radius:99px;background:var(--p3);overflow:hidden;position:relative}
+  .bar i{display:block;height:100%;background:var(--sig);border-radius:99px}
+  .bar i.low{background:var(--cool)}.bar i.hi{background:var(--hot)}
+  .zone{position:absolute;top:0;bottom:0;border-left:1px solid rgba(234,240,237,.35);border-right:1px solid rgba(234,240,237,.35)}
+  table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.t th{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim2);text-align:left;padding:0 6px 7px;font-weight:700}
+  table.t td{padding:8px 6px;border-top:1px solid var(--line);font-family:var(--mono)}
+  table.t td.n{text-align:right}
+  .cue{display:flex;gap:9px;padding:7px 0;font-size:14px}
+  .cue b{font-family:var(--mono);color:var(--sig);font-size:12px;flex:0 0 auto;padding-top:2px}
+  .warn{background:var(--hot-soft-bg);border:1px solid var(--hot-soft-border);color:var(--hot-text);border-radius:10px;padding:10px 12px;font-size:13px}
+  .note{background:var(--ok-soft-bg);border:1px solid var(--ok-soft-border);color:var(--tx);border-radius:10px;padding:10px 12px;font-size:13px}
+  .empty{text-align:center;padding:34px 16px;color:var(--dim)}
+  .ssgroup{border-left:2px solid var(--sig);padding-left:10px;margin-left:-1px}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 
 
-/* ---------- bloqueo con PIN ---------- */
-#lock{position:fixed;inset:0;z-index:200;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px}
-#lock.on{display:flex}
-.lockcard{width:100%;max-width:320px}
+  /* ---------- bloqueo con PIN ---------- */
+  #lock{position:fixed;inset:0;z-index:200;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px}
+  #lock.on{display:flex}
+  .lockcard{width:100%;max-width:320px}
 
-/* ---------- visor de fotos ---------- */
-#lightbox{position:fixed;inset:0;z-index:180;background:var(--scrim);display:none;align-items:center;justify-content:center;padding:20px}
-#lightbox.on{display:flex}
-#lbImgs{display:flex;align-items:center;justify-content:center;max-width:92vw;max-height:80vh}
-#lbImgs img{max-width:92vw;max-height:80vh;object-fit:contain;border-radius:10px}
-#lbClose{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;background:var(--p1)}
-#lbPrev,#lbNext{position:absolute;top:50%;transform:translateY(-50%);background:var(--p1)}
-#lbPrev{left:10px}#lbNext{right:10px}
+  /* ---------- visor de fotos ---------- */
+  #lightbox{position:fixed;inset:0;z-index:180;background:var(--scrim);display:none;align-items:center;justify-content:center;padding:20px}
+  #lightbox.on{display:flex}
+  #lbImgs{display:flex;align-items:center;justify-content:center;max-width:92vw;max-height:80vh}
+  #lbImgs img{max-width:92vw;max-height:80vh;object-fit:contain;border-radius:10px}
+  #lbClose{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;background:var(--p1)}
+  #lbPrev,#lbNext{position:absolute;top:50%;transform:translateY(-50%);background:var(--p1)}
+  #lbPrev{left:10px}#lbNext{right:10px}
 
-/* ---------- tutorial guiado ---------- */
-#tour{position:fixed;inset:0;z-index:160;display:none}
-#tour.on{display:block}
-#tourglass{position:fixed;inset:0;pointer-events:auto}
-.tourmask{position:fixed;background:var(--scrim);pointer-events:none;transition:all .18s ease}
-#tourring{position:fixed;display:none;border:2px solid var(--sig);border-radius:10px;box-shadow:0 0 0 4px color-mix(in srgb, var(--sig) 25%, transparent);pointer-events:none;transition:all .18s ease}
-#tourcard{position:fixed;width:min(92vw,380px);background:var(--p1);border:1px solid var(--line);border-radius:var(--r);padding:16px;pointer-events:auto;transition:top .18s ease,left .18s ease}
-#tourcard.floating{top:50%;left:50%;transform:translate(-50%,-50%)}
+  /* ---------- tutorial guiado ---------- */
+  #tour{position:fixed;inset:0;z-index:160;display:none}
+  #tour.on{display:block}
+  #tourglass{position:fixed;inset:0;pointer-events:auto}
+  .tourmask{position:fixed;background:var(--scrim);pointer-events:none;transition:all .18s ease}
+  #tourring{position:fixed;display:none;border:2px solid var(--sig);border-radius:10px;box-shadow:0 0 0 4px color-mix(in srgb, var(--sig) 25%, transparent);pointer-events:none;transition:all .18s ease}
+  #tourcard{position:fixed;width:min(92vw,380px);background:var(--p1);border:1px solid var(--line);border-radius:var(--r);padding:16px;pointer-events:auto;transition:top .18s ease,left .18s ease}
+  #tourcard.floating{top:50%;left:50%;transform:translate(-50%,-50%)}
+}
