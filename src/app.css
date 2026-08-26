@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* scripts/ es el arnes de verificacion, no la app. Su README nombra clases
+   de utilidad como ejemplo, y sin esto Tailwind las toma por uso real y las
+   compila dentro del bundle que se manda al telefono. */
+@source not "../scripts";
 
 /* ============================================================
    TEMA (oscuro/claro) + ACENTO — ver bloques [data-theme] y [data-accent]
