@@ -136,7 +136,11 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:16px;line-height:1.45}
 body{padding-bottom:calc(78px + env(safe-area-inset-bottom));overscroll-behavior-y:contain}
-button,input,select,textarea{font-family:inherit;font-size:16px;color:inherit}
+/* line-height:normal es una restauracion, no una decision nueva: el preflight de
+   Tailwind hace que los controles hereden el 1.45 del body, y eso agranda cada
+   boton ~4px y la barra de navegacion ~3px. Antes heredaban el `normal` del
+   navegador. Sin esta linea, toda la app cambia de altura. */
+button,input,select,textarea{font-family:inherit;font-size:16px;color:inherit;line-height:normal}
 button{cursor:pointer;border:none;background:none;padding:0}
 a{color:var(--sig)}
 .wrap{max-width:760px;margin:0 auto;padding:0 14px}
