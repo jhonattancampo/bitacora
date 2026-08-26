@@ -56,5 +56,21 @@ export default tseslint.config(
     languageOptions: { sourceType: "script" },
   },
 
+  {
+    /* scripts/ son herramientas de linea de comandos, no codigo de la app:
+       usan process y escriben a stdout a proposito. */
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: { ...globals.node } },
+    rules: { "no-console": "off" },
+  },
+
+  {
+    /* Estos dos corren DENTRO del navegador (se cargan con fetch + eval desde
+       la consola), no en Node. */
+    files: ["scripts/huella-visual/dom.js", "scripts/huella-visual/escena.js"],
+    languageOptions: { globals: { ...globals.browser } },
+    rules: { "no-eval": "off" },
+  },
+
   prettier,
 );
