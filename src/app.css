@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* ============================================================
    TEMA (oscuro/claro) + ACENTO — ver bloques [data-theme] y [data-accent]
    ============================================================ */
@@ -41,6 +43,95 @@
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
   --r:12px;
+}
+
+/* ============================================================
+   PUENTE HACIA TAILWIND
+   ------------------------------------------------------------
+   `inline` no es decorativo: es lo que mantiene vivo el cambio de tema.
+
+   Sin `inline`, Tailwind emite `--color-bg: var(--bg)` dentro de :root y las
+   utilidades apuntan a esa copia. La copia congela el valor que --bg tenía en
+   :root, y cambiar [data-theme] o [data-accent] deja de repintar nada.
+
+   Con `inline`, Tailwind reemplaza el alias en el momento de compilar: `bg-bg`
+   sale como `background-color: var(--bg)`, sin intermediarios. La variable se
+   resuelve recién cuando el navegador pinta, contra los atributos que applyTheme()
+   dejó en <html>. Por eso las 12 combinaciones siguen siendo instantáneas.
+
+   Tailwind acá NO es el mecanismo de temas: es solo otra forma de escribir las
+   clases que leen esas variables. El mecanismo sigue siendo el de arriba.
+   ============================================================ */
+@theme inline {
+  /* La paleta por defecto de Tailwind se borra a propósito. No queremos que
+     `bg-blue-500` o `bg-slate-800` esten disponibles: si estan, alguien los va a
+     usar, y la app empieza a verse como cualquier otra hecha con Tailwind.
+     Los unicos colores que existen son los seis acentos y los dos temas. */
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-white: #fff;
+  --color-black: #000;
+
+  /* superficies y tinta */
+  --color-bg: var(--bg);
+  --color-p1: var(--p1);
+  --color-p2: var(--p2);
+  --color-p3: var(--p3);
+  --color-line: var(--line);
+  --color-tx: var(--tx);
+  --color-dim: var(--dim);
+  --color-dim2: var(--dim2);
+  --color-scrim: var(--scrim);
+
+  /* acento (cambia con [data-accent]) */
+  --color-sig: var(--sig);
+  --color-sig-ink: var(--sig-ink);
+  --color-sig-soft-bg: var(--sig-soft-bg);
+  --color-sig-soft-border: var(--sig-soft-border);
+  --color-sig-text: var(--sig-text);
+
+  /* estados */
+  --color-ok: var(--ok);
+  --color-ok-soft-bg: var(--ok-soft-bg);
+  --color-ok-soft-border: var(--ok-soft-border);
+  --color-ok-text: var(--ok-text);
+  --color-hot: var(--hot);
+  --color-hot-soft-bg: var(--hot-soft-bg);
+  --color-hot-soft-border: var(--hot-soft-border);
+  --color-hot-text: var(--hot-text);
+  --color-cool: var(--cool);
+
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+
+  /* radios nombrados por rol, no por tamaño: si mañana la ficha cambia de
+     redondeo, cambia acá y no en treinta lugares */
+  --radius-mark: 6px;
+  --radius-ctl-sm: 9px;
+  --radius-ctl: 10px;
+  --radius-card: var(--r);
+  --radius-bar: 14px;
+  --radius-sheet: 16px;
+  --radius-pill: 99px;
+
+  /* la escala tipografica real de la app, incluidos los medios puntos que
+     Tailwind no trae y que son parte de como se ve esto hoy */
+  --text-eyebrow: 10px;
+  --text-micro: 11px;
+  --text-tiny: 11.5px;
+  --text-mono-sm: 12px;
+  --text-small: 13px;
+  --text-table: 13.5px;
+  --text-ui: 14px;
+  --text-h3: 14px;
+  --text-h2: 18px;
+  --text-h1: 26px;
+  --text-timer: 30px;
+
+  --tracking-eyebrow: .16em;
+  --tracking-label: .14em;
+  --tracking-nav: .04em;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:16px;line-height:1.45}
@@ -115,6 +206,9 @@ label.f .eyebrow{display:block;margin-bottom:5px}
 .setno{font-family:var(--mono);font-size:12px;color:var(--dim2);text-align:center;font-weight:700}
 .setrow input{padding:11px 6px;text-align:center;font-family:var(--mono);font-weight:700;font-size:16px}
 .setrow input::placeholder{color:var(--dim2);font-weight:400}
+/* preflight pintaria los placeholders con currentColor al 50%; la app ya tenia
+   su propio gris para esto y lo mantenemos en todos los campos */
+input::placeholder,textarea::placeholder{color:var(--dim2);opacity:1}
 .check{width:44px;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--p2);display:flex;align-items:center;justify-content:center;color:var(--dim2)}
 .setrow.done input{background:var(--ok-soft-bg);border-color:var(--ok-soft-border);color:var(--ok-text)}
 .setrow.done .check{background:var(--ok);border-color:var(--ok);color:var(--sig-ink)}

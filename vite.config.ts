@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   build: {
@@ -8,6 +9,7 @@ export default defineConfig({
     sourcemap: true,
   },
   plugins: [
+    tailwindcss(),
     VitePWA({
       // The app keeps its own hand-written manifest in public/, so install
       // behaviour (name, icons, start_url, colors) stays byte-identical.
