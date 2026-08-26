@@ -3,6 +3,11 @@
    de utilidad como ejemplo, y sin esto Tailwind las toma por uso real y las
    compila dentro del bundle que se manda al telefono. */
 @source not "../scripts";
+/* `scrollIntoView({ block: "center", inline: "center" })` en features/tour.ts:
+   Prettier escribe `inline: "center"` con espacio, y el extractor de Tailwind
+   lee `inline` como si fuera una clase suelta y compila `.inline{display:inline}`.
+   Nadie usa esa clase; es CSS muerto que viaja al telefono. */
+@source not inline("inline");
 
 /* ============================================================
    TEMA (oscuro/claro) + ACENTO — ver bloques [data-theme] y [data-accent]
