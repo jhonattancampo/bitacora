@@ -13,9 +13,12 @@
    The PIN keeps a screen private from whoever picks up the
    phone, not from an attacker with the disk.
 
-   Only the storage side lives here so far. The lock screen
-   itself is still in app.ts and lands in the next PR.
+   La pantalla de bloqueo esta al final del archivo.
    ========================================================= */
+import { $ } from "../lib/dom";
+import { render } from "../ui/shell";
+import { toast } from "../ui/toast";
+import { maybeStartTour } from "./tour";
 
 const PIN_KEY = "bitacora_pin_v1";
 
@@ -59,3 +62,86 @@ export function pinCheck(code: string): boolean {
   const i = pinInfo();
   return !!i && i.h === pinHash(code);
 }
+
+/* ---------- la pantalla de bloqueo ---------- */
+
+let lockMode = "unlock"; // unlock | setup1 | setup2 | disable
+let lockTemp = "";
+export function showLock(mode) {
+  lockMode = mode;
+  if (mode !== "setup2") lockTemp = "";
+  const titles = {
+    unlock: "Ingresá tu PIN",
+    setup1: "Elegí un PIN (4 a 8 dígitos)",
+    setup2: "Repetí el PIN",
+    disable: "Ingresá tu PIN para desactivar",
+  };
+  $("#lockTitle").textContent = titles[mode];
+  $("#lockMsg").textContent = "";
+  $("#lockInput").value = "";
+  $("#lock").classList.add("on");
+  setTimeout(() => $("#lockInput").focus(), 50);
+}
+function hideLock() {
+  $("#lock").classList.remove("on");
+}
+function lockSubmit() {
+  const val = $("#lockInput").value.trim();
+  if (val.length < 4) {
+    $("#lockMsg").textContent = "Mínimo 4 dígitos.";
+    return;
+  }
+  if (lockMode === "unlock") {
+    if (pinCheck(val)) {
+      hideLock();
+      maybeStartTour();
+    } else {
+      $("#lockMsg").textContent = "PIN incorrecto.";
+      $("#lockInput").value = "";
+    }
+    return;
+  }
+  if (lockMode === "setup1") {
+    lockTemp = val;
+    showLock("setup2");
+    return;
+  }
+  if (lockMode === "setup2") {
+    if (val !== lockTemp) {
+      $("#lockMsg").textContent = "No coincide. Empezá de nuevo.";
+      showLock("setup1");
+      return;
+    }
+    pinSet(val);
+    hideLock();
+    toast("PIN activado");
+    render();
+    return;
+  }
+  if (lockMode === "disable") {
+    if (pinCheck(val)) {
+      pinClear();
+      hideLock();
+      toast("PIN desactivado");
+      render();
+    } else {
+      $("#lockMsg").textContent = "PIN incorrecto.";
+      $("#lockInput").value = "";
+    }
+    return;
+  }
+}
+$("#lockGo").addEventListener("click", lockSubmit);
+$("#lockInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") lockSubmit();
+});
+
+let appWasHidden = false;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    appWasHidden = true;
+  } else if (appWasHidden && pinIsSet()) {
+    appWasHidden = false;
+    showLock("unlock");
+  }
+});
