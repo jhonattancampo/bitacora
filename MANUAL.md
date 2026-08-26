@@ -29,7 +29,12 @@ Aparece una barra abajo con la cuenta regresiva. Podés sumar o restar 15 segund
 Al lado del botón **⏱** de cada ejercicio hay un lápiz: tocálo y ponés otro tiempo sin salir de la sesión. Vale para hoy nada más — tanto el botón como el cronómetro automático pasan a usar el número nuevo, pero la rutina queda con el descanso original para la próxima vez.
 
 **Reemplazar un ejercicio sobre la marcha**
-Si la máquina está ocupada o el hombro no te acompaña, tocá el **⋯** al lado del ejercicio y elegí **"Reemplazar ejercicio (solo por hoy)"**. Buscás el reemplazo en la base pública y esa fila cambia de ejercicio manteniendo el objetivo (series, repeticiones, RIR, descanso y superserie). Los números que ya habías cargado ahí se borran, porque no corresponden al ejercicio nuevo — si tenías alguna serie marcada como hecha, te pide confirmación antes. La rutina no se toca: la próxima sesión vuelve al ejercicio original, y el historial guarda el que hiciste de verdad.
+Si la máquina está ocupada o el hombro no te acompaña, tocá el **⋯** al lado del ejercicio y elegí **"Reemplazar ejercicio"**. Buscás el reemplazo en la base pública y, cuando lo elegís, la app te pregunta hasta dónde llega el cambio:
+
+- **Solo por hoy**: cambia esta sesión y nada más. La próxima vez la rutina vuelve al ejercicio original.
+- **Para siempre**: además actualiza la rutina, así el cambio queda para las próximas sesiones.
+
+En los dos casos se mantiene el objetivo (series, repeticiones, RIR, descanso y superserie). Los números que ya habías cargado ahí se borran, porque no corresponden al ejercicio nuevo — si tenías alguna serie marcada como hecha, te pide confirmación antes. El historial guarda siempre el ejercicio que hiciste de verdad.
 
 **Agregar un ejercicio a la sesión**
 Si un día cambiás algo sobre la marcha (una máquina ocupada, ganas de sumar algo), tocá **"+ Agregar ejercicio a esta sesión"** al final.
@@ -113,3 +118,37 @@ Si tenés cuenta, solo vos accedés a lo tuyo — nadie más, ni siquiera otra p
 
 **Me equivoqué al cargar una serie, ¿cómo la corrijo?**
 Mientras la sesión sigue abierta, tocá el número o el ✓ para destildarla y volver a escribir. Si ya terminaste la sesión, andá a Progreso → Historial, abrí esa sesión — desde ahí podés borrarla y repetirla si hace falta cargarla de nuevo.
+
+---
+
+## Para quien mantiene la app
+
+Esta parte no hace falta para entrenar: es solo si vos sos quien toca el código.
+
+**Antes** los archivos de la app se subían tal cual y listo. **Ahora hay un paso más:**
+el proyecto se **compila** antes de publicarse. Suena peor de lo que es — Vercel lo hace
+solo en cada `git push`, así que en el día a día no cambia nada.
+
+Lo que sí cambia si querés probar algo en la compu:
+
+```bash
+npm install     # una sola vez, la primera vez
+npm run dev     # levanta la app en http://localhost:5173
+```
+
+Y antes de subir un cambio, esto te avisa si rompiste algo:
+
+```bash
+npm run check
+```
+
+Dos cosas más que conviene saber:
+
+- **Tus claves de Firebase ahora viven en `public/config.js`** (antes estaba en la raíz).
+  Es el mismo archivo, con el mismo contenido, movido de lugar. Se sigue editando igual:
+  copiás y pegás de la consola de Firebase.
+- **Ya no hay que subir el número de versión a mano.** Antes había que acordarse de
+  cambiar `VERSION` en `sw.js` en cada cambio, y si te olvidabas el teléfono seguía
+  mostrando la versión vieja. Ahora eso se genera solo.
+
+El detalle completo está en el `README.md`.

@@ -8,16 +8,18 @@ en la nube con Firebase.
 
 ## 1. Poner la app online (Vercel) — 3 minutos
 
-1. Entrá a **vercel.com/drop** (necesitás una cuenta de Vercel, el plan gratis alcanza).
-2. Arrastrá la carpeta `bitacora-gym` completa (o el `.zip`) a la página.
-3. Elegí un nombre de proyecto, por ejemplo `bitacora`, y tocá **Deploy**.
-4. Te queda una URL tipo `https://bitacora.vercel.app`.
+La app ya no son archivos sueltos que se copian tal cual: antes de publicarse hay
+que **compilarla** (juntar y optimizar el código). Vercel hace ese paso solo, pero
+necesita el repositorio, no una carpeta arrastrada.
 
-> **Importante:** cada vez que arrastrás archivos a Vercel Drop se crea un proyecto
-> y una URL **nueva**. Para actualizar sin cambiar de dirección, entrá al proyecto
-> ya creado en Vercel y conectalo a un repositorio de GitHub: desde ahí cada push
-> actualiza la misma URL. Con la cuenta de Firebase andando esto igual deja de ser
-> crítico, porque el historial vive en la nube y no en la URL.
+1. Subí el proyecto a GitHub (más abajo, en *Versionarlo en GitHub*).
+2. Entrá a **vercel.com/new** → *Import Git Repository* → elegí el repo.
+3. Vercel detecta solo que es un proyecto **Vite**; si no, el archivo `vercel.json`
+   ya se lo dice (`npm run build`, salida en `dist`). No hace falta tocar nada.
+4. Te queda una URL tipo `https://bitacora.vercel.app`, y cada `git push` la actualiza.
+
+> **Nota:** **vercel.com/drop** (arrastrar la carpeta) ya no sirve para este proyecto,
+> porque no compila nada: subiría el código sin construir y la app no abriría.
 
 En este punto la app ya sirve: guarda todo en el teléfono. La cuenta es el paso 2.
 
@@ -33,8 +35,12 @@ En este punto la app ya sirve: guarda todo en el teléfono. La cuenta es el paso
 3. Te va a mostrar un bloque `const firebaseConfig = { ... }`. Copialo.
 
 ### 2.2 Pegar las claves
-Abrí `config.js` y reemplazá los valores `PEGA_TU_...` por los tuyos.
+Abrí **`public/config.js`** y reemplazá los valores `PEGA_TU_...` por los tuyos.
 Dejá el campo `sdkVersion` como está.
+
+> Ese archivo sigue siendo JavaScript común y corriente, a propósito: es el único
+> que se edita a mano copiando y pegando de la consola de Firebase, así que se
+> quedó fuera de todo lo demás para que siga siendo fácil.
 
 > Estas claves no son secretas: identifican al proyecto, no dan acceso.
 > Lo que protege tus datos es el login más las reglas del paso 2.4.
@@ -57,7 +63,7 @@ poné tu dominio de Vercel (`bitacora.vercel.app`, sin `https://`).
 Sin esto, el login falla en producción.
 
 ### 2.6 Volver a subir
-Como cambiaste `config.js`, subí de nuevo la carpeta a Vercel (o hacé push si conectaste GitHub).
+Como cambiaste `public/config.js`, hacé `git push`: Vercel compila y publica sola.
 
 ---
 
@@ -100,35 +106,68 @@ Es a propósito: evita que dos dispositivos peleen por la misma serie.
 | Archivo | Qué hace |
 |---|---|
 | `index.html` | Estructura y arranque |
-| `app.css` | Todos los estilos |
-| `app.js` | La app: rutinas, series, temporizador, progreso |
-| `sync.js` | Cuenta y sincronización con Firebase |
-| `config.js` | Tus claves de Firebase (lo único que editás) |
-| `sw.js` | Service worker: hace que abra sin señal |
-| `manifest.webmanifest` | Que se instale como app |
+| `src/app.css` | Todos los estilos |
+| `src/app.ts` | La app: rutinas, series, temporizador, progreso |
+| `src/sync.ts` | Cuenta y sincronización con Firebase |
+| `src/lib/calc.ts` | Las cuentas: 1RM estimado, volumen, series semanales |
+| `src/lib/timer.ts` | La cuenta regresiva del descanso |
+| `src/pwa.ts` | Registro del service worker y el botón de actualizar |
+| `public/config.js` | Tus claves de Firebase (lo único que editás) |
+| `public/manifest.webmanifest` | Que se instale como app |
+| `test/` | Pruebas automáticas (se corren con `npm test`) |
 | `firestore.rules` | Reglas de seguridad para pegar en la consola |
-| `vercel.json` | Cabeceras de cache |
+| `vercel.json` | Cabeceras de cache y cómo compilar |
+| `vite.config.ts` | Cómo se compila y cómo se genera el service worker |
+
+El service worker (`sw.js`, el que hace que la app abra sin señal) ya **no** se
+escribe a mano: lo genera el compilador en cada build, dentro de `dist/`.
 
 ---
 
 ## Actualizaciones
 
-Cuando cambies archivos, subí el número de `VERSION` en `sw.js`
-(`bitacora-v1` → `bitacora-v2`). Sin eso el teléfono puede seguir mostrando la
-versión vieja. En la app, Ajustes → **Buscar actualización** fuerza la recarga.
+**Ya no hay que subir ningún número a mano.** Antes había que acordarse de cambiar
+`VERSION` en `sw.js` en cada cambio, y si te olvidabas el teléfono seguía mostrando
+la versión vieja. Ahora el service worker se genera en cada compilación y se entera
+solo de qué archivos cambiaron.
+
+Hacés `git push`, Vercel compila, y el teléfono toma la versión nueva la próxima vez
+que abrís la app. Si querés forzarlo en el momento: Ajustes → **Buscar actualización**.
 
 ## Probarlo en la compu antes de subir
 
-No alcanza con abrir `index.html` haciendo doble clic (los service workers y los
-módulos necesitan un servidor). Desde la carpeta:
+La primera vez, instalá las herramientas (una sola vez, necesita internet):
 
 ```bash
-npx serve .
-# o
-python3 -m http.server 8000
+npm install
 ```
 
-Y entrás a `http://localhost:8000`.
+Después, para trabajar:
+
+```bash
+npm run dev
+```
+
+Y entrás a `http://localhost:5173`. Se actualiza solo cada vez que guardás un archivo.
+
+Para probar **exactamente lo que va a ver el teléfono** (incluido el modo sin señal):
+
+```bash
+npm run build
+npm run preview
+```
+
+Y entrás a `http://localhost:4173`.
+
+### Revisar que no rompiste nada
+
+```bash
+npm run check
+```
+
+Corre las cuatro verificaciones de una: que los tipos cierren, que el código no tenga
+errores obvios, que las pruebas pasen y que compile. Las mismas cuatro corren solas en
+cada Pull Request de GitHub, así que si algo se rompe te vas a enterar ahí también.
 
 ---
 
@@ -166,16 +205,18 @@ git push -u origin main
 actualiza solo con cada push.
 
 **Si arrancás de cero:** **vercel.com/new** → Import Git Repository → elegí el repo →
-Framework Preset: **Other** → Root Directory: `./` → **Deploy**.
+Framework Preset: **Vite** → Root Directory: `./` → **Deploy**. Si quedó en **Other**
+tampoco pasa nada: `vercel.json` ya trae el comando de compilación y la carpeta de
+salida, y eso manda por encima de lo que diga el panel.
 
 Cada rama que subas genera además una URL de preview, así podés probar un cambio sin
 tocar la app que usás en el gimnasio.
 
 ### Al hacer cambios
 
-1. Subí el número de `VERSION` en `sw.js` (`bitacora-v1` → `bitacora-v2`).
+1. `npm run check` (que pase todo).
 2. `git commit` + `git push`.
-3. En el teléfono: Ajustes → **Buscar actualización**.
+3. En el teléfono: Ajustes → **Buscar actualización**, o simplemente abrila más tarde.
 
 ### ¿Repo público o privado?
 
