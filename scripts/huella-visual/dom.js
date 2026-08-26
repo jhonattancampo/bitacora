@@ -9,53 +9,133 @@
 // porque margin/padding/gap son estilo, no geometria.
 (async () => {
   const PROPS = [
-    'display','position','flexDirection','flexWrap','alignItems','justifyContent','gap','flex','order',
-    'gridTemplateColumns','gridTemplateRows','gridColumn','gridRow',
-    'marginTop','marginRight','marginBottom','marginLeft',
-    'paddingTop','paddingRight','paddingBottom','paddingLeft',
-    'backgroundColor','backgroundImage','color','opacity',
-    'borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth',
-    'borderTopStyle','borderRightStyle','borderBottomStyle','borderLeftStyle',
-    'borderTopColor','borderRightColor','borderBottomColor','borderLeftColor',
-    'borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius',
-    'fontFamily','fontSize','fontWeight','fontStyle','fontVariantNumeric','letterSpacing','lineHeight',
-    'textAlign','textTransform','textDecorationLine','textOverflow','whiteSpace','overflow','overflowX','overflowY',
-    'boxShadow','outlineWidth','outlineColor','transform','zIndex','visibility',
-    'minWidth','maxWidth','minHeight','maxHeight','objectFit','resize','cursor',
-    'stroke','fill','strokeWidth','listStyleType','verticalAlign','boxSizing','textIndent','tabularNums',
+    "display",
+    "position",
+    "flexDirection",
+    "flexWrap",
+    "alignItems",
+    "justifyContent",
+    "gap",
+    "flex",
+    "order",
+    "gridTemplateColumns",
+    "gridTemplateRows",
+    "gridColumn",
+    "gridRow",
+    "marginTop",
+    "marginRight",
+    "marginBottom",
+    "marginLeft",
+    "paddingTop",
+    "paddingRight",
+    "paddingBottom",
+    "paddingLeft",
+    "backgroundColor",
+    "backgroundImage",
+    "color",
+    "opacity",
+    "borderTopWidth",
+    "borderRightWidth",
+    "borderBottomWidth",
+    "borderLeftWidth",
+    "borderTopStyle",
+    "borderRightStyle",
+    "borderBottomStyle",
+    "borderLeftStyle",
+    "borderTopColor",
+    "borderRightColor",
+    "borderBottomColor",
+    "borderLeftColor",
+    "borderTopLeftRadius",
+    "borderTopRightRadius",
+    "borderBottomRightRadius",
+    "borderBottomLeftRadius",
+    "fontFamily",
+    "fontSize",
+    "fontWeight",
+    "fontStyle",
+    "fontVariantNumeric",
+    "letterSpacing",
+    "lineHeight",
+    "textAlign",
+    "textTransform",
+    "textDecorationLine",
+    "textOverflow",
+    "whiteSpace",
+    "overflow",
+    "overflowX",
+    "overflowY",
+    "boxShadow",
+    "outlineWidth",
+    "outlineColor",
+    "transform",
+    "zIndex",
+    "visibility",
+    "minWidth",
+    "maxWidth",
+    "minHeight",
+    "maxHeight",
+    "objectFit",
+    "resize",
+    "cursor",
+    "stroke",
+    "fill",
+    "strokeWidth",
+    "listStyleType",
+    "verticalAlign",
+    "boxSizing",
+    "textIndent",
+    "tabularNums",
   ];
 
-  const ROOTS = ['#app', 'nav', '#timer', '#sheet', '#scrim', '#toast', '#lightbox', '#tour', '#lock'];
-  const ACC = ['mostaza','verde','fucsia','violeta','celeste','coral'];
+  const ROOTS = [
+    "#app",
+    "nav",
+    "#timer",
+    "#sheet",
+    "#scrim",
+    "#toast",
+    "#lightbox",
+    "#tour",
+    "#lock",
+  ];
+  const ACC = ["mostaza", "verde", "fucsia", "violeta", "celeste", "coral"];
   const root = document.documentElement;
-  const prev = [root.getAttribute('data-theme'), root.getAttribute('data-accent')];
+  const prev = [root.getAttribute("data-theme"), root.getAttribute("data-accent")];
 
   const snapshot = () => {
     const lines = [];
     for (const sel of ROOTS) {
       const host = document.querySelector(sel);
-      if (!host) { lines.push(sel + ' AUSENTE'); continue; }
+      if (!host) {
+        lines.push(sel + " AUSENTE");
+        continue;
+      }
       let i = 0;
-      for (const el of [host, ...host.querySelectorAll('*')]) {
+      for (const el of [host, ...host.querySelectorAll("*")]) {
         const c = getComputedStyle(el);
         // el path incluye tag + indice, no las clases: justamente las clases
         // son lo que cambia, y no queremos que el path se mueva por eso
         const tag = el.tagName.toLowerCase();
-        lines.push(`${sel}[${i++}]${tag}{` + PROPS.map(p => p + ':' + c[p]).join(';') + '}');
+        lines.push(`${sel}[${i++}]${tag}{` + PROPS.map((p) => p + ":" + c[p]).join(";") + "}");
       }
     }
-    return lines.join('\n');
+    return lines.join("\n");
   };
 
   const out = {};
-  for (const th of ['dark','light']) for (const ac of ACC) {
-    root.setAttribute('data-theme', th);
-    root.setAttribute('data-accent', ac);
-    out[th + '/' + ac] = snapshot();
-  }
-  root.setAttribute('data-theme', prev[0]);
-  root.setAttribute('data-accent', prev[1]);
-  await fetch('http://localhost:5399/' + window.SNAP + '.dom.json', { method: 'POST', body: JSON.stringify(out) });
-  const n = out['dark/mostaza'].split('\n').length;
-  return window.SNAP + ': ' + n + ' nodos x 12 combinaciones';
-})()
+  for (const th of ["dark", "light"])
+    for (const ac of ACC) {
+      root.setAttribute("data-theme", th);
+      root.setAttribute("data-accent", ac);
+      out[th + "/" + ac] = snapshot();
+    }
+  root.setAttribute("data-theme", prev[0]);
+  root.setAttribute("data-accent", prev[1]);
+  await fetch("http://localhost:5399/" + window.SNAP + ".dom.json", {
+    method: "POST",
+    body: JSON.stringify(out),
+  });
+  const n = out["dark/mostaza"].split("\n").length;
+  return window.SNAP + ": " + n + " nodos x 12 combinaciones";
+})();
