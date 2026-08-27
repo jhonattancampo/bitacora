@@ -12,15 +12,17 @@
    ========================================================= */
 import { $, esc, uid } from "../../lib/dom";
 import { exById, entryOf, routineById } from "../../state/selectors";
-import { save, state } from "../../state/store";
+import { save } from "../../state/store";
 import { closeSheet, openSheet } from "../../ui/sheet";
 import { render } from "../../ui/shell";
 import { toast } from "../../ui/toast";
 import { sheetExercise } from "../../views/ejercicios";
 import { sheetRoutine } from "../../views/rutinas";
-import { sheetSwapScope } from "../swap";
+import { setPendingSwap, sheetSwapScope } from "../swap";
+import { alreadyImported, quickImport } from "./import";
 import { exdbMatch, exdbTokens, guessGroup, noAccent } from "./search";
 import type { ExdbEntry } from "./search";
+import type { ActionMap } from "../../events/types";
 
 /** Cuanto espera despues de la ultima tecla antes de buscar. */
 const DEBOUNCE_MS = 250;
@@ -32,28 +34,31 @@ const MIN_CHARS = 3;
 const EXDB_URL =
   "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json";
 const EXDB_KEY = "bitacora_exdb_v2";
-let exdbCache = null;
-export function exdbLoaded() {
+let exdbCache: ExdbEntry[] | null = null;
+export function exdbLoaded(): ExdbEntry[] | null {
   if (exdbCache) return exdbCache;
   try {
     exdbCache = JSON.parse(localStorage.getItem(EXDB_KEY) || "null");
   } catch (e) {}
   return exdbCache;
 }
-export async function exdbEnsure() {
+export async function exdbEnsure(): Promise<ExdbEntry[]> {
   const have = exdbLoaded();
   if (have) return have;
   const res = await fetch(EXDB_URL);
   if (!res.ok) throw new Error("No se pudo descargar");
-  const data = await res.json();
-  const slim = data.map((e) => ({
+  /* La base cruda trae mucho mas de lo que usamos. Se adelgaza antes de
+     guardarla: son ~1 MB y localStorage no es infinito. */
+  const data = (await res.json()) as any[];
+  const slim: ExdbEntry[] = data.map((e) => ({
     id: e.id,
     name: e.name,
     muscles: e.primaryMuscles || [],
     equipment: e.equipment || "",
     instructions: e.instructions || [],
     images: (e.images || []).map(
-      (p) => "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/" + p,
+      (p: string) =>
+        "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/" + p,
     ),
   }));
   exdbCache = slim;
@@ -66,22 +71,26 @@ export async function exdbEnsure() {
   return slim;
 }
 
-let exdbMode = "form"; // 'form' | 'library' | 'routine' | 'replace-item' | 'replace-ex' | 'session-item'
-let exdbRoutineId = null; // 'routine' y 'replace-item'
-let exdbItemId = null; // solo usado en modo 'replace-item'
-let exdbExId = null; // solo usado en modo 'replace-ex'
-let exdbEntryId = null; // solo usado en modo 'session-item'
-let exdbPending = null; // ejercicio elegido en 'session-item', esperando el alcance
-function alreadyImported(sourceId) {
-  return state.exercises.find((x) => x.sourceId === sourceId);
-}
-export function sheetExDbSearch(mode?, ctx?) {
+/**
+ * Desde donde se abrio la hoja, o sea que se hace con el ejercicio elegido.
+ * Cada modo trae su propio contexto en las variables de abajo.
+ */
+export type ExdbMode =
+  "form" | "library" | "routine" | "replace-item" | "replace-ex" | "session-item";
+
+let exdbMode: ExdbMode = "form";
+let exdbRoutineId: string | null = null; // 'routine' y 'replace-item'
+let exdbItemId: string | null = null; // solo usado en modo 'replace-item'
+let exdbExId: string | null = null; // solo usado en modo 'replace-ex'
+let exdbEntryId: string | null = null; // solo usado en modo 'session-item'
+
+export function sheetExDbSearch(mode?: ExdbMode, ctx?: any): void {
   exdbMode = mode || "form";
   exdbRoutineId = null;
   exdbItemId = null;
   exdbExId = null;
   exdbEntryId = null;
-  exdbPending = null;
+  setPendingSwap(null);
   if (exdbMode === "routine") exdbRoutineId = ctx || null;
   if (exdbMode === "replace-item") {
     exdbRoutineId = (ctx && ctx.routineId) || null;
@@ -89,7 +98,7 @@ export function sheetExDbSearch(mode?, ctx?) {
   }
   if (exdbMode === "replace-ex") exdbExId = ctx || null;
   if (exdbMode === "session-item") exdbEntryId = ctx || null;
-  const titles = {
+  const titles: Record<ExdbMode, string> = {
     form: "Base pública de ejercicios",
     library: "Explorar más ejercicios",
     routine: "Agregar ejercicio a la rutina",
@@ -97,7 +106,7 @@ export function sheetExDbSearch(mode?, ctx?) {
     "replace-ex": "Reemplazar ejercicio",
     "session-item": "Reemplazar ejercicio",
   };
-  const subs = {
+  const subs: Record<ExdbMode, string> = {
     form: "873 ejercicios de Free Exercise DB (dominio público), con fotos. Buscá uno y se completa el formulario; después ajustá lo que quieras y guardá.",
     library:
       "873 ejercicios con fotos. Tocá uno para sumarlo directo a tu biblioteca — podés elegir varios seguidos.",
@@ -115,14 +124,14 @@ export function sheetExDbSearch(mode?, ctx?) {
     <input type="text" id="exdbQ" placeholder="Buscar en español o inglés: polea, sentadilla, bench…" autofocus>
     <div id="exdbOut" class="stack mt-2.5"><div class="text-tiny text-dim">Escribí al menos 3 letras.</div></div>`);
   const inp = $("#exdbQ");
-  let t = null;
+  let t: ReturnType<typeof setTimeout> | null = null;
   inp.addEventListener("input", () => {
-    clearTimeout(t);
+    if (t) clearTimeout(t);
     t = setTimeout(() => runExdbSearch(inp.value), DEBOUNCE_MS);
   });
   inp.focus();
 }
-export async function runExdbSearch(q) {
+export async function runExdbSearch(q: string): Promise<void> {
   const out = $("#exdbOut");
   if (!out) return;
   q = q.trim();
@@ -170,24 +179,7 @@ export async function runExdbSearch(q) {
     })
     .join("");
 }
-export function quickImport(e) {
-  const existing = alreadyImported(e.id);
-  if (existing) return existing;
-  const created = {
-    id: uid(),
-    name: e.name,
-    group: guessGroup(e.name, e.muscles),
-    cues: e.instructions,
-    err: "",
-    tip: "Importado de Free Exercise DB.",
-    images: e.images,
-    custom: false,
-    sourceId: e.id,
-  };
-  state.exercises.push(created);
-  return created;
-}
-export async function pickExdb(id) {
+export async function pickExdb(id: string): Promise<void> {
   const db = exdbLoaded() || [];
   const e = db.find((x) => x.id === id);
   if (!e) return;
@@ -213,7 +205,7 @@ export async function pickExdb(id) {
   }
   if (exdbMode === "routine") {
     const created = quickImport(e);
-    const r = routineById(exdbRoutineId);
+    const r = routineById(exdbRoutineId!);
     if (r) {
       r.items.push({
         id: uid(),
@@ -229,12 +221,12 @@ export async function pickExdb(id) {
       toast("Agregado a la rutina: " + created.name);
     }
     closeSheet();
-    sheetRoutine(exdbRoutineId);
+    sheetRoutine(exdbRoutineId!);
     return;
   }
   if (exdbMode === "replace-item") {
     const created = quickImport(e);
-    const r = routineById(exdbRoutineId);
+    const r = routineById(exdbRoutineId!);
     const it = r && r.items.find((x) => x.id === exdbItemId);
     if (it) {
       it.exerciseId = created.id;
@@ -242,18 +234,18 @@ export async function pickExdb(id) {
       toast("Ejercicio reemplazado: " + created.name);
     }
     closeSheet();
-    sheetRoutine(exdbRoutineId);
+    sheetRoutine(exdbRoutineId!);
     return;
   }
   if (exdbMode === "session-item") {
-    const en = entryOf(exdbEntryId);
+    const en = entryOf(exdbEntryId!);
     if (!en) return;
-    exdbPending = e;
+    setPendingSwap(e);
     sheetSwapScope(en, e);
     return;
   }
   if (exdbMode === "replace-ex") {
-    const ex = exById(exdbExId);
+    const ex = exById(exdbExId!);
     if (!ex) return;
     if (
       !confirm(
@@ -273,7 +265,7 @@ export async function pickExdb(id) {
     save(true);
     render();
     toast("Ejercicio reemplazado: " + ex.name);
-    sheetExercise(exdbExId);
+    sheetExercise(exdbExId!);
     return;
   }
 }
@@ -283,17 +275,11 @@ export async function pickExdb(id) {
    alcanza para emparejarlas. Se busca por ejercicio y, si la rutina repite el
    mismo ejercicio, se respeta el orden de aparición. */
 
-/**
- * El ejercicio elegido en modo 'session-item' que todavia espera que el
- * usuario diga si el reemplazo es de hoy o para siempre.
- *
- * La eleccion y el alcance son dos pasos y dos hojas distintas, asi que
- * el elegido tiene que sobrevivir entre una y otra.
- */
-export function pendingSwap(): ExdbEntry | null {
-  return exdbPending;
-}
-
-export function clearPendingSwap(): void {
-  exdbPending = null;
-}
+export const exdbActions: ActionMap = {
+  /* Cuatro puertas a la misma hoja. Lo que cambia es el modo, o sea que se
+     hace con el ejercicio que el usuario elija. */
+  "x-search-db": () => sheetExDbSearch(),
+  "x-search-db-lib": () => sheetExDbSearch("library"),
+  "x-replace-db": ({ el }) => sheetExDbSearch("replace-ex", el.dataset.id),
+  "exdb-pick": ({ el }) => void pickExdb(el.dataset.id),
+};

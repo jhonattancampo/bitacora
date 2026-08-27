@@ -16,6 +16,7 @@ import { $ } from "../lib/dom";
 import { newTimer, restoreTimer as restoredTimerState, timerFrame } from "../lib/timer";
 import type { TimerState } from "../lib/timer";
 import { state } from "../state/store";
+import type { ActionMap } from "../events/types";
 
 /** Donde se guarda el descanso en curso para sobrevivir a un cierre de la app. */
 const TIMER_KEY = "bitacora_timer";
@@ -30,7 +31,7 @@ export const T: TimerState & { int: any } = {
   beeped: false,
   warned: false,
 };
-export function startTimer(sec, label) {
+export function startTimer(sec: number, label: string): void {
   Object.assign(T, newTimer(sec, label));
   beepStart();
   $("#timer").classList.add("on");
@@ -66,8 +67,8 @@ export function restoreTimer() {
   } catch (e) {}
 }
 /* pantalla encendida durante la sesión (iOS 16.4+) */
-let wakeLock = null;
-export async function keepAwake(on) {
+let wakeLock: WakeLockSentinel | null = null;
+export async function keepAwake(on: boolean): Promise<void> {
   try {
     if (on && state.settings.wake && "wakeLock" in navigator && !wakeLock) {
       wakeLock = await navigator.wakeLock.request("screen");
@@ -81,9 +82,14 @@ export async function keepAwake(on) {
     }
   } catch (e) {}
 }
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && state.active) void keepAwake(true);
-});
+/** Cuelga el listener que recupera el wake lock. La llama el arranque. */
+export function initWakeLock(): void {
+  /* El sistema suelta el wake lock al pasar la app a segundo plano y no lo
+     devuelve solo: hay que volver a pedirlo al volver. */
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && state.active) void keepAwake(true);
+  });
+}
 export function tick() {
   const fr = timerFrame(T);
   $("#tnum").textContent = fr.text;
@@ -106,7 +112,7 @@ export function tick() {
    arranca  = un tono grave y corto
    ya viene = dos tonos agudos rápidos
    terminó  = tres tonos ascendentes */
-function tones(seq, vib) {
+function tones(seq: Tono[], vib: number[] | null) {
   if (state.settings.vibrate && navigator.vibrate && vib)
     try {
       navigator.vibrate(vib);
@@ -164,3 +170,34 @@ function beep() {
     [120, 80, 120, 80, 220],
   );
 }
+
+/** Un tono del aviso: frecuencia, cuando arranca, cuanto dura, y que fuerte. */
+interface Tono {
+  /** Frecuencia en Hz. */
+  f: number;
+  /** Segundos de retraso desde el inicio de la secuencia. */
+  t: number;
+  /** Duracion en segundos. */
+  d: number;
+  /** Ganancia; por defecto 0,3. */
+  g?: number;
+}
+
+/** Cuanto suma o resta cada toque de los botones del descanso. */
+const NUDGE_S = 15;
+
+export const timerActions: ActionMap = {
+  /* Sumar tiempo tambien borra `beeped`: si el descanso ya habia sonado y
+     el usuario lo estira, tiene que volver a sonar al llegar de nuevo. */
+  "t-add": () => {
+    T.end += NUDGE_S * 1000;
+    T.total += NUDGE_S;
+    T.beeped = false;
+    tick();
+  },
+  "t-sub": () => {
+    T.end -= NUDGE_S * 1000;
+    tick();
+  },
+  "t-skip": () => stopTimer(),
+};

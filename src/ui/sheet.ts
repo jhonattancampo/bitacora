@@ -4,6 +4,7 @@
    it hands over its full markup.
    ========================================================= */
 import { $ } from "../lib/dom";
+import type { ActionMap } from "../events/types";
 
 /** Replaces the sheet's contents, shows it, and scrolls it back to the top. */
 export function openSheet(html: string): void {
@@ -23,3 +24,7 @@ export function closeSheet(): void {
 export function sheetIsOpen(): boolean {
   return $("#sheet").classList.contains("on");
 }
+
+export const sheetActions: ActionMap = {
+  closesheet: () => closeSheet(),
+};

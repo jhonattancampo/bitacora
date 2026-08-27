@@ -51,8 +51,10 @@ export function viewRoutines() {
     <div class="card bg-transparent border-dashed mb-7"><div class="text-small text-dim">Mantené los mismos ejercicios 6-10 semanas. Cambiar todo cada semana hace imposible medir el progreso.</div></div></div>`
   );
 }
-export function sheetRoutine(id) {
-  const r = id ? routineById(id) : { id: "", name: "", subtitle: "", items: [] };
+export function sheetRoutine(id: string | null): void {
+  /* Sin id es una rutina nueva: un molde vacio que todavia no esta en el
+     estado. Con id, sale de la lista de rutinas que se acaba de dibujar. */
+  const r = (id ? routineById(id) : { id: "", name: "", subtitle: "", items: [] })!;
   const opts = exOptions();
   const items = r.items
     .map(

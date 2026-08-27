@@ -15,6 +15,8 @@ import { viewRoutines } from "../views/rutinas";
 import { viewSettings } from "../views/ajustes";
 import { viewTrain } from "../views/entrenar";
 import type { ViewName } from "../types";
+import type { ActionMap } from "../events/types";
+import { closeSheet } from "./sheet";
 
 const VIEWS: Record<ViewName, () => string> = {
   train: viewTrain,
@@ -45,3 +47,13 @@ export function render(): void {
   el.innerHTML = (VIEWS[view] || viewTrain)();
   window.scrollTo({ top: 0 });
 }
+
+export const shellActions: ActionMap = {
+  /* La hoja se cierra al navegar: quedaria flotando sobre una pantalla que
+     ya no es la suya. */
+  nav: ({ el }) => {
+    setView(el.dataset.v);
+    closeSheet();
+    render();
+  },
+};

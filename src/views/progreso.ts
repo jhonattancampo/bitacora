@@ -20,6 +20,12 @@ import {
 } from "../state/selectors";
 import { state } from "../state/store";
 import { header } from "../ui/chrome";
+
+/** Un punto de una curva: la fecha en el eje x, el valor en el y. */
+interface Punto {
+  x: string;
+  y: number;
+}
 import { openSheet } from "../ui/sheet";
 import { exOptions } from "./ejercicios";
 
@@ -76,7 +82,7 @@ function progExercise() {
     </div>
     ${h.length ? `<table class="t"><tr><th>Fecha</th><th>Mejor serie</th><th class="n">1RM est.</th><th class="n">Volumen</th></tr>${rows}</table>` : ""}`;
 }
-function lineChart(pts) {
+function lineChart(pts: Punto[]): string {
   const W = 320,
     H = 120,
     pad = 10;
@@ -84,8 +90,8 @@ function lineChart(pts) {
     mn = Math.min(...ys),
     mx = Math.max(...ys),
     span = mx - mn || 1;
-  const X = (i) => pad + (i / (pts.length - 1)) * (W - pad * 2);
-  const Y = (v) => H - pad - ((v - mn) / span) * (H - pad * 2 - 10);
+  const X = (i: number) => pad + (i / (pts.length - 1)) * (W - pad * 2);
+  const Y = (v: number) => H - pad - ((v - mn) / span) * (H - pad * 2 - 10);
   const d = pts
     .map((p, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p.y).toFixed(1))
     .join(" ");
@@ -170,7 +176,7 @@ function progHistory() {
     })
     .join("");
 }
-export function sheetSession(id) {
+export function sheetSession(id: string): void {
   const s = state.sessions.find((x) => x.id === id);
   if (!s) return;
   const r = sessionVolume(s);
@@ -196,7 +202,7 @@ export function sheetSession(id) {
 }
 function progBW() {
   const b = state.bw.slice().sort((a, c) => (a.date < c.date ? 1 : -1));
-  const avg = (from, to) => {
+  const avg = (from: string, to: string): number | null => {
     const sl = b.filter((x) => x.date > from && x.date <= to);
     return sl.length ? sl.reduce((a, c) => a + c.kg, 0) / sl.length : null;
   };
@@ -209,7 +215,7 @@ function progBW() {
   const pct = diff != null && a2 ? (diff / a2) * 100 : null;
   let verdict = "Cargá 4-5 pesadas por semana, en ayunas, para tener un promedio confiable.";
   if (pct != null) {
-    if (Math.abs(diff) <= 0.3)
+    if (Math.abs(diff!) <= 0.3)
       verdict = "Peso estable. Si la fuerza sube, estás en recomposición: no toques nada.";
     else if (pct < -0.7)
       verdict =

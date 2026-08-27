@@ -22,15 +22,15 @@ export interface ExdbEntry {
   images: string[];
 }
 
-export const noAccent = (s) =>
+export const noAccent = (s: unknown): string =>
   String(s)
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 // un token puede coincidir por sí mismo, por su singular o por cualquiera de sus traducciones
-export function exdbTerms(tok) {
-  const out = [];
-  const add = (x) => {
+export function exdbTerms(tok: string): string[] {
+  const out: string[] = [];
+  const add = (x: string) => {
     if (x && out.indexOf(x) < 0) out.push(x);
   };
   const forms = [tok];
@@ -43,7 +43,7 @@ export function exdbTerms(tok) {
   });
   return out;
 }
-export function exdbTokens(q) {
+export function exdbTokens(q: string): string[] {
   let n =
     " " +
     noAccent(q)
@@ -58,7 +58,7 @@ export function exdbTokens(q) {
     .split(/\s+/)
     .filter((t) => t && !EXDB_STOP.has(t));
 }
-export function exdbMatch(e, tokens, full) {
+export function exdbMatch(e: ExdbEntry, tokens: string[], full: string): number {
   const name = noAccent(e.name);
   const rest = noAccent((e.muscles || []).join(" ") + " " + (e.equipment || ""));
   let score = 0;
@@ -77,7 +77,7 @@ export function exdbMatch(e, tokens, full) {
   return score;
 }
 
-export function guessGroup(name, muscles) {
+export function guessGroup(name: string, muscles: string[]): string {
   const m = (muscles && muscles[0]) || "";
   if (m === "shoulders" && /lateral/i.test(name)) return "Deltoides lateral";
   return MUSCLE_TO_GROUP[m] || "Pecho";
