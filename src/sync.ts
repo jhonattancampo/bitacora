@@ -38,15 +38,28 @@
 const Sync: SyncApi = (function () {
   "use strict";
 
+  /* Tipos internos. Solo anotaciones: no cambia una linea de logica ni el
+     formato del archivo, que sigue fuera de Prettier. */
+  /** Un documento tal como viaja a Firestore y vuelve. */
+  interface Doc { type: string; data: any; deleted?: boolean; updatedAt?: number }
+  /**
+   * Lo que quedo sincronizado la vez pasada, por id de documento.
+   * `h`/`t` son la huella y la fecha de lo ultimo que se confirmo con la nube.
+   * `lt`/`lh` son la estampa local de un cambio hecho en este dispositivo que
+   * todavia no se confirmo: se agregan y se borran sobre la misma entrada.
+   */
+  interface ShadowEntry { h: number; t: number; lt?: number; lh?: number }
+  type Shadow = Record<string, ShadowEntry>;
+
   const SHADOW_KEY = "bitacora_shadow_v2";
-  const S = { ready: false, user: null, status: "local", msg: "", last: null, busy: false };
-  const listeners = [];
-  let mods = null, fb = null, timer = null, bootP = null;
+  const S: SyncState = { ready: false, user: null, status: "local", msg: "", last: null, busy: false };
+  const listeners: ((s: SyncState) => void)[] = [];
+  let mods: any = null, fb: any = null, timer: ReturnType<typeof setTimeout> | null = null, bootP: Promise<any> | null = null;
 
   /* ---------- infraestructura ---------- */
-  function on(cb) { listeners.push(cb); }
+  function on(cb: (s: SyncState) => void) { listeners.push(cb); }
   function emit() { listeners.forEach(cb => { try { cb(S); } catch (e) {} }); }
-  function setStatus(status, msg) { S.status = status; S.msg = msg || ""; emit(); }
+  function setStatus(status: string, msg?: string) { S.status = status; S.msg = msg || ""; emit(); }
 
   function configured() {
     const c = window.FIREBASE_CONFIG;
@@ -59,8 +72,8 @@ const Sync: SyncApi = (function () {
      y la UI queda pensando que todavía está en curso. Acá cualquier demora
      se convierte en un error de verdad, visible y reintentable. */
   const NET_TIMEOUT = 45000;
-  function withTimeout(promise, label, ms?) {
-    let t = null;
+  function withTimeout<T>(promise: Promise<T>, label: string, ms?: number) {
+    let t: ReturnType<typeof setTimeout> | null = null;
     const limit = new Promise((_, reject) => {
       t = setTimeout(() => {
         const e: any = new Error(label + ": la nube no respondió en " + Math.round((ms || NET_TIMEOUT) / 1000) + "s");
@@ -68,11 +81,11 @@ const Sync: SyncApi = (function () {
         reject(e);
       }, ms || NET_TIMEOUT);
     });
-    return Promise.race([promise, limit]).finally(() => clearTimeout(t));
+    return Promise.race([promise, limit]).finally(() => { if (t) clearTimeout(t); });
   }
 
   // Mensaje corto y entendible para el badge; el detalle completo va a la consola.
-  function errText(e) {
+  function errText(e: any) {
     if (!e) return "Falló la sincronización";
     if (e.code === "sync/timeout") return e.message;
     if (e.code === "permission-denied") return "La nube rechazó el permiso (reglas de Firestore)";
@@ -120,28 +133,28 @@ const Sync: SyncApi = (function () {
 
   /* ---------- utilidades de estado ---------- */
   // huella de lo que queda local después de aplicar un documento remoto
-  const hashOf = R => (R && !R.deleted ? hash(JSON.stringify({ type: R.type, data: R.data })) : 0);
-  const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return h; };
-  const shadow = () => { try { return JSON.parse(localStorage.getItem(SHADOW_KEY)) || {}; } catch (e) { return {}; } };
-  const saveShadow = o => { try { localStorage.setItem(SHADOW_KEY, JSON.stringify(o)); } catch (e) {} };
+  const hashOf = (R: Doc | null) => (R && !R.deleted ? hash(JSON.stringify({ type: R.type, data: R.data })) : 0);
+  const hash = (s: string) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return h; };
+  const shadow = (): Shadow => { try { return JSON.parse(localStorage.getItem(SHADOW_KEY) || "null") || {}; } catch (e) { return {}; } };
+  const saveShadow = (o: Shadow) => { try { localStorage.setItem(SHADOW_KEY, JSON.stringify(o)); } catch (e) {} };
 
-  function flatten(st) {
-    const m = {};
+  function flatten(st: any): Record<string, Doc> {
+    const m: Record<string, Doc> = {};
     m["settings"] = { type: "settings", data: { settings: st.settings } };
-    (st.exercises || []).forEach(e => (m["ex_" + e.id] = { type: "ex", data: e }));
-    (st.routines || []).forEach(r => (m["rt_" + r.id] = { type: "rt", data: r }));
-    (st.sessions || []).filter(s => s.endedAt).forEach(s => (m["se_" + s.id] = { type: "se", data: s }));
-    (st.bw || []).forEach(b => (m["bw_" + b.date] = { type: "bw", data: b }));
+    (st.exercises || []).forEach((e: any) => (m["ex_" + e.id] = { type: "ex", data: e }));
+    (st.routines || []).forEach((r: any) => (m["rt_" + r.id] = { type: "rt", data: r }));
+    (st.sessions || []).filter((s: any) => s.endedAt).forEach((s: any) => (m["se_" + s.id] = { type: "se", data: s }));
+    (st.bw || []).forEach((b: any) => (m["bw_" + b.date] = { type: "bw", data: b }));
     return m;
   }
-  function parseId(docId) {
+  function parseId(docId: string) {
     if (docId === "settings") return { type: "settings" };
     const i = docId.indexOf("_");
     return { type: docId.slice(0, i), ref: docId.slice(i + 1) };
   }
-  const ARR = { ex: ["exercises", "id"], rt: ["routines", "id"], se: ["sessions", "id"], bw: ["bw", "date"] };
+  const ARR: Record<string, [string, string]> = { ex: ["exercises", "id"], rt: ["routines", "id"], se: ["sessions", "id"], bw: ["bw", "date"] };
 
-  function applyRemote(st, docId, doc) {
+  function applyRemote(st: any, docId: string, doc: Doc) {
     const p = parseId(docId);
     if (p.type === "settings") {
       if (!doc.deleted && doc.data && doc.data.settings) st.settings = Object.assign({}, st.settings, doc.data.settings);
@@ -151,14 +164,14 @@ const Sync: SyncApi = (function () {
     if (!spec) return;
     const [key, idf] = spec;
     st[key] = st[key] || [];
-    const i = st[key].findIndex(x => String(x[idf]) === String(p.ref));
+    const i = st[key].findIndex((x: any) => String(x[idf]) === String(p.ref));
     if (doc.deleted) { if (i >= 0) st[key].splice(i, 1); return; }
     if (!doc.data) return;
     if (i >= 0) st[key][i] = doc.data; else st[key].push(doc.data);
   }
 
   /* ---------- sincronización ---------- */
-  async function run(_reason?) {
+  async function run(_reason?: string) {
     if (!S.user || S.busy) return;
     if (!navigator.onLine) { setStatus("offline", "Sin conexión — se sincroniza al volver"); return; }
     S.busy = true; setStatus("syncing", "Sincronizando…");
@@ -176,7 +189,9 @@ const Sync: SyncApi = (function () {
       const first = !Object.keys(sh).length;
 
       /* 1. traer lo remoto */
-      let snap;
+      /* El snapshot es de la SDK de Firestore, que se carga por CDN y no
+         trae tipos. */
+      let snap: any;
       const lastPull = Number(localStorage.getItem("bitacora_lastpull") || 0);
       if (first || !lastPull) snap = await withTimeout(getDocs(col), "Bajando datos");
       else snap = await withTimeout(getDocs(query(col, where("updatedAt", ">", lastPull - 300000))), "Bajando cambios");
@@ -196,25 +211,25 @@ const Sync: SyncApi = (function () {
         else setStatus("error", "No se pudo confirmar con el servidor — sin conexión real");
         return;
       }
-      const remote = {};
-      snap.forEach(d => (remote[d.id] = d.data()));
+      const remote: Record<string, Doc> = {};
+      snap.forEach((d: any) => (remote[d.id] = d.data()));
 
       /* 2. resolver */
       const ids = new Set(Object.keys(local).concat(Object.keys(sh), Object.keys(remote)));
-      const push = [];
+      const push: { id: string; body: Doc }[] = [];
       const pushed = new Set();
       const touched = new Set();
       let pulled = 0;
       const now = Date.now();
 
       // la nube gana para este id: se aplica el documento remoto sobre el estado local
-      function takeRemote(id, R) {
+      function takeRemote(id: string, R: Doc) {
         applyRemote(st, id, R);
         sh[id] = { h: hashOf(R), t: R.updatedAt || now };
         touched.add(id); pulled++;
       }
       // lo local gana para este id: se sube (o se sube la lápida si acá se borró)
-      function takeLocal(id, L, prev, lHash) {
+      function takeLocal(id: string, L: Doc | null, prev: ShadowEntry | null, lHash: number) {
         if (L) push.push({ id, body: { type: L.type, data: L.data, deleted: false, updatedAt: now } });
         else if (prev) push.push({ id, body: { type: parseId(id).type, data: null, deleted: true, updatedAt: now } });
         else return;
@@ -331,10 +346,10 @@ const Sync: SyncApi = (function () {
     } catch (e) {}
   }
 
-  function schedule(ms) {
+  function schedule(ms?: number) {
     if (!S.user) return;
     stamp();
-    clearTimeout(timer);
+    if (timer) clearTimeout(timer);
     timer = setTimeout(() => run("auto"), ms || 4000);
   }
 
@@ -343,7 +358,7 @@ const Sync: SyncApi = (function () {
     if (!configured()) { setStatus("unconfigured", "Sin cuenta: los datos viven solo en este dispositivo"); return; }
     try {
       const f = await boot();
-      f.m.auth.onAuthStateChanged(f.auth, u => {
+      f.m.auth.onAuthStateChanged(f.auth, (u: any) => {
         S.user = u ? { uid: u.uid, email: u.email } : null;
         S.ready = true;
         if (u) { setStatus("syncing", "Conectando…"); void run("login"); }
@@ -355,7 +370,7 @@ const Sync: SyncApi = (function () {
     }
   }
 
-  async function signIn(email, pass) {
+  async function signIn(email: string, pass: string) {
     const f = await boot();
     await f.m.auth.signInWithEmailAndPassword(f.auth, email.trim(), pass);
   }
@@ -364,11 +379,11 @@ const Sync: SyncApi = (function () {
     const provider = new f.m.auth.GoogleAuthProvider();
     await f.m.auth.signInWithPopup(f.auth, provider);
   }
-  async function signUp(email, pass) {
+  async function signUp(email: string, pass: string) {
     const f = await boot();
     await f.m.auth.createUserWithEmailAndPassword(f.auth, email.trim(), pass);
   }
-  async function reset(email) {
+  async function reset(email: string) {
     const f = await boot();
     await f.m.auth.sendPasswordResetEmail(f.auth, email.trim());
   }
@@ -383,7 +398,7 @@ const Sync: SyncApi = (function () {
   document.addEventListener("visibilitychange", () => { if (!document.hidden) schedule(1000); });
 
   // puntos de entrada para pruebas automatizadas (no se usan en producción)
-  function _inject(backend, user) { fb = backend; S.user = user; bootP = null; }
+  function _inject(backend: any, user: SyncState["user"]) { fb = backend; S.user = user; bootP = null; }
   // stamp() normalmente lo dispara schedule() desde el save de la app; las
   // pruebas lo necesitan sin arrastrar el temporizador.
   function _stamp() { stamp(); }
