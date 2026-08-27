@@ -18,6 +18,7 @@ import {
 } from "../state/selectors";
 import { state } from "../state/store";
 import { header, storageWarn } from "../ui/chrome";
+import type { Session, SessionEntry } from "../types";
 
 export function viewTrain() {
   if (state.active) return viewSession();
@@ -70,7 +71,8 @@ export function viewTrain() {
 }
 
 function viewSession() {
-  const s = state.active;
+  /* Solo se llega aca desde viewTrain, que ya comprobo que hay sesion. */
+  const s = state.active!;
   const { v, sets } = sessionVolume(s);
   const total = s.entries.reduce((a, e) => a + e.sets.length, 0);
   const body = s.entries.map((en, idx) => entryCard(en, idx, s)).join("");
@@ -100,12 +102,12 @@ function viewSession() {
   </div>`
   );
 }
-export function elapsed(s) {
+export function elapsed(s: Session): string {
   const ms = Date.now() - (s.startedAt || Date.now());
   const m = Math.floor(ms / 60000);
   return (m >= 60 ? Math.floor(m / 60) + "h " : "") + (m % 60) + "m";
 }
-function entryCard(en, idx, s) {
+function entryCard(en: SessionEntry, idx: number, s: Session): string {
   const ex = exById(en.exerciseId);
   const t = en.target || {};
   const prev = lastPerf(en.exerciseId, s.id);

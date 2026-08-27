@@ -13,14 +13,15 @@ import { dnice, fmt } from "../lib/format";
 import { exById, exerciseHistory } from "../state/selectors";
 import { state } from "../state/store";
 import { header } from "../ui/chrome";
+import type { Exercise } from "../types";
 import { openSheet } from "../ui/sheet";
 
 export function exOptions() {
-  const byG = {};
+  const byG: Record<string, Exercise[]> = {};
   state.exercises.forEach((e) => {
     (byG[e.group] = byG[e.group] || []).push(e);
   });
-  return (sel) =>
+  return (sel: string) =>
     Object.keys(byG)
       .sort()
       .map(
@@ -42,7 +43,7 @@ export function viewExercises() {
   const list = state.exercises.filter(
     (e) => !q || e.name.toLowerCase().includes(q) || e.group.toLowerCase().includes(q),
   );
-  const byG = {};
+  const byG: Record<string, Exercise[]> = {};
   list.forEach((e) => {
     (byG[e.group] = byG[e.group] || []).push(e);
   });
@@ -77,14 +78,14 @@ export function viewExercises() {
     <div class="h-6"></div></div>`
   );
 }
-export function sheetGuide(id) {
+export function sheetGuide(id: string): void {
   const e = exById(id);
   if (!e) return;
   const hist = exerciseHistory(id).slice(0, 5);
   const photos =
     e.images && e.images.length
       ? `<div class="flex items-center gap-2 mt-3 overflow-x-auto" data-photos='${esc(JSON.stringify(e.images))}'>
-    ${e.images.map((u, i) => `<img class="h-[150px] rounded-ctl border border-line flex-none cursor-zoom-in" src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" onerror="this.style.display='none'">`).join("")}
+    ${e.images.map((u: string, i: number) => `<img class="h-[150px] rounded-ctl border border-line flex-none cursor-zoom-in" src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" onerror="this.style.display='none'">`).join("")}
     </div>${e.photoNote ? `<div class="warn mt-2">${esc(e.photoNote)}</div>` : ""}
     <div class="text-tiny text-dim mt-[5px]">Fotos: Free Exercise DB (dominio público)</div>`
       : "";
@@ -104,15 +105,17 @@ export function sheetGuide(id) {
     }
     <button class="btn w-full mt-4" data-act="x-edit" data-id="${e.id}">Editar este ejercicio</button>`);
 }
-export function sheetExercise(id, prefill?) {
+export function sheetExercise(id: string | null, prefill?: Partial<Exercise>): void {
   const base = id
     ? exById(id)
     : { id: "", name: "", group: "Pecho", cues: [], err: "", tip: "", images: [] };
-  const e = prefill ? Object.assign({}, base, prefill, { id: base.id }) : base;
+  /* Editar un ejercicio que ya no existe no deberia poder pasar: el boton
+     sale de la lista de los que hay. */
+  const e = (prefill ? Object.assign({}, base, prefill, { id: base!.id }) : base)!;
   const photos =
     e.images && e.images.length
       ? `<div class="flex items-center gap-2 my-2 mx-0 overflow-x-auto" data-photos='${esc(JSON.stringify(e.images))}'>
-    ${e.images.map((u, i) => `<img class="h-20 rounded-lg border border-line flex-none cursor-zoom-in" src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" onerror="this.style.display='none'">`).join("")}
+    ${e.images.map((u: string, i: number) => `<img class="h-20 rounded-lg border border-line flex-none cursor-zoom-in" src="${esc(u)}" loading="lazy" data-act="photo" data-idx="${i}" onerror="this.style.display='none'">`).join("")}
     </div>`
       : "";
   openSheet(`<div class="between"><div class="h2">${id ? "Editar ejercicio" : "Nuevo ejercicio"}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>

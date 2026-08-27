@@ -6,12 +6,9 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["vite/client", "vite-plugin-pwa/client", "node"],
 
-    /* Phase 1 keeps the type checker permissive on purpose: the goal is that the
-       existing code compiles and behaves identically, not perfect typing.
-       Tightening this (strict, noImplicitAny) is a later phase. */
-    "strict": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
+    /* Fase 3: el codigo ya esta repartido en modulos con limites claros, asi
+       que el chequeo estricto tiene contra que apoyarse. */
+    "strict": true,
 
     "allowJs": true,
     "checkJs": false,

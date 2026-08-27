@@ -24,7 +24,12 @@ export default tseslint.config(
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none" },
       ],
-      // Phase 1 leans on `any` on purpose while the DOM code stays untyped.
+      /* Con `strict: true` desde la Fase 3, los `any` que quedan ya no son
+         deuda: son fronteras reales. La SDK de Firebase se carga por CDN y no
+         trae tipos; `$`/`$$` devuelven `any` a proposito, documentado en
+         lib/dom.ts; y el `el` de un handler es el elemento que el que lo
+         escribio ya sabe cual es. Prender la regla pediria treinta
+         `eslint-disable` que no compran nada. */
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-empty-object-type": "off",
       "no-console": ["warn", { allow: ["warn", "error"] }],

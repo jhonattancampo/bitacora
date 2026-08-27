@@ -7,13 +7,14 @@
    restaurable; el .csv es para mirar el historial en una
    planilla, y no se puede reimportar.
    ========================================================= */
-import { dl } from "../lib/dom";
+import { $, dl } from "../lib/dom";
 import { today } from "../lib/format";
 import { doneSessions, exById } from "../state/selectors";
 import { DEFAULT_SETTINGS, save, setState, state } from "../state/store";
 import { render } from "../ui/shell";
 import { toast } from "../ui/toast";
 import type { AppState } from "../types";
+import type { ActionMap } from "../events/types";
 
 export function exportJSON() {
   const blob = new Blob([JSON.stringify(state, null, 1)], { type: "application/json" });
@@ -69,3 +70,10 @@ export function importJSON(file: File): void {
   };
   fr.readAsText(file);
 }
+
+export const backupActions: ActionMap = {
+  export: () => exportJSON(),
+  "export-csv": () => exportCSV(),
+  /* El input de archivo esta escondido: el boton visible le pasa el click. */
+  import: () => $("#fileIn").click(),
+};

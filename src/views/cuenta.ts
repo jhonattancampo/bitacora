@@ -11,7 +11,7 @@ import { openSheet } from "../ui/sheet";
 
 function syncBadge() {
   const S: any = window.Sync ? Sync.state : { status: "unconfigured" };
-  const map = {
+  const map: Record<string, string[]> = {
     ok: ["ok", "Al día"],
     syncing: ["sig", "Sincronizando…"],
     offline: ["", "Sin conexión"],
@@ -58,7 +58,7 @@ export function accountCard() {
     </div>
   </div>`;
 }
-export function sheetAuth(mode) {
+export function sheetAuth(mode: string): void {
   const reg = mode === "reg";
   openSheet(`<div class="between"><div class="h2">${reg ? "Crear cuenta" : "Entrar"}</div><button class="btn sm ghost" data-act="closesheet">Cerrar</button></div>
     <label class="f"><span class="eyebrow">Email</span><input type="text" id="auEmail" inputmode="email" autocapitalize="none" autocomplete="email" placeholder="vos@email.com"></label>
@@ -74,9 +74,9 @@ export function sheetAuth(mode) {
     </button>
     <div class="text-tiny text-dim mt-3.5 mx-0 mb-1">Al entrar, lo que ya tengas en la nube se descarga y se junta con lo de este dispositivo. Nada se pisa sin avisar.</div>`);
 }
-export function authErr(e) {
+export function authErr(e: { code?: string; message?: string }): void {
   const c = (e && e.code) || "";
-  const map = {
+  const map: Record<string, string> = {
     "auth/invalid-email": "Ese email no es válido.",
     "auth/missing-password": "Falta la contraseña.",
     "auth/weak-password": "La contraseña necesita al menos 6 caracteres.",

@@ -3,11 +3,9 @@ dev-dist
 node_modules
 package-lock.json
 
-# app.ts and sync.ts keep the hand-written formatting they had as .js files.
-# Running Prettier over them would rewrite ~2300 lines and turn the TypeScript
-# migration into an unreviewable diff. They get reformatted when the code around
-# them is rewritten, not before.
-src/app.ts
+# sync.ts conserva el formato a mano que tenia como .js. Pasarle Prettier
+# reescribiria 400 lineas de un archivo que la Fase 3 no vino a reestructurar.
+# app.ts salio de esta lista al quedar en 80 lineas, todas nuevas.
 src/sync.ts
 src/app.css
 

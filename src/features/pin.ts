@@ -19,6 +19,7 @@ import { $ } from "../lib/dom";
 import { render } from "../ui/shell";
 import { toast } from "../ui/toast";
 import { maybeStartTour } from "./tour";
+import type { ActionMap } from "../events/types";
 
 const PIN_KEY = "bitacora_pin_v1";
 
@@ -65,12 +66,15 @@ export function pinCheck(code: string): boolean {
 
 /* ---------- la pantalla de bloqueo ---------- */
 
-let lockMode = "unlock"; // unlock | setup1 | setup2 | disable
+/** En que paso esta la pantalla de bloqueo. */
+type LockMode = "unlock" | "setup1" | "setup2" | "disable";
+
+let lockMode: LockMode = "unlock";
 let lockTemp = "";
-export function showLock(mode) {
+export function showLock(mode: LockMode): void {
   lockMode = mode;
   if (mode !== "setup2") lockTemp = "";
-  const titles = {
+  const titles: Record<LockMode, string> = {
     unlock: "Ingresá tu PIN",
     setup1: "Elegí un PIN (4 a 8 dígitos)",
     setup2: "Repetí el PIN",
@@ -131,10 +135,33 @@ function lockSubmit() {
     return;
   }
 }
-$("#lockGo").addEventListener("click", lockSubmit);
-$("#lockInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") lockSubmit();
-});
+/**
+ * Cuelga los listeners de la pantalla de bloqueo. La llama el arranque.
+ *
+ * Antes esto pasaba al importar el modulo. Colgarlos aca en vez de al vuelo
+ * tiene dos ventajas: el modulo se puede importar sin que exista el HTML de
+ * la app — que es lo que necesitan los tests — y queda a la vista que el
+ * arranque es quien enciende cada cosa.
+ */
+export function initPinLock(): void {
+  $("#lockGo").addEventListener("click", lockSubmit);
+  $("#lockInput").addEventListener("keydown", (e: KeyboardEvent) => {
+    if (e.key === "Enter") lockSubmit();
+  });
+
+  /* Al volver a la app despues de dejarla en segundo plano, el PIN se vuelve
+     a pedir. Es lo unico que separa la bitacora de quien levanta el telefono
+     de la mesa. */
+  let appWasHidden = false;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      appWasHidden = true;
+    } else if (appWasHidden && pinIsSet()) {
+      appWasHidden = false;
+      showLock("unlock");
+    }
+  });
+}
 
 let appWasHidden = false;
 document.addEventListener("visibilitychange", () => {
@@ -145,3 +172,11 @@ document.addEventListener("visibilitychange", () => {
     showLock("unlock");
   }
 });
+
+export const pinActions: ActionMap = {
+  /* Activar y cambiar son el mismo flujo: elegir un PIN y repetirlo. Cambiar
+     no pide el anterior — quien ya esta adentro de la app ya paso el PIN. */
+  "pin-enable": () => showLock("setup1"),
+  "pin-change": () => showLock("setup1"),
+  "pin-disable": () => showLock("disable"),
+};

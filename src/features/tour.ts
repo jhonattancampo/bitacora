@@ -16,10 +16,25 @@ import { state } from "../state/store";
 import { closeSheet } from "../ui/sheet";
 import { render, setView, view } from "../ui/shell";
 import { sheetRoutine } from "../views/rutinas";
+import type { ActionMap } from "../events/types";
+
+/** Un paso del recorrido. */
+interface TourStep {
+  /** A que pantalla navegar antes de mostrarlo. `null` = quedarse donde este. */
+  view?: string | null;
+  /** Que resaltar: un selector, o una funcion que lo busca. `null` = nada. */
+  selector?: string | (() => Element | null) | null;
+  /** Se corre antes de buscar el objetivo; sirve para abrir una hoja. */
+  before?: () => void;
+  title: string;
+  text: string;
+  /** Texto del boton en el ultimo paso. */
+  cta?: string;
+}
 
 /** Marca de "ya lo vio", para no repetirlo en cada arranque. */
 const TOUR_SEEN_KEY = "bitacora_tutorial_seen";
-const TOUR_STEPS = [
+const TOUR_STEPS: TourStep[] = [
   {
     view: null,
     selector: null,
@@ -138,21 +153,21 @@ export function endTour() {
     localStorage.setItem(TOUR_SEEN_KEY, "1");
   } catch (e) {}
 }
-function tourResolveTarget(step) {
+function tourResolveTarget(step: TourStep): Element | null {
   try {
     return typeof step.selector === "function"
       ? step.selector()
-      : document.querySelector(step.selector);
+      : document.querySelector(step.selector!);
   } catch (e) {
     return null;
   }
 }
-function tourVisible(el) {
+function tourVisible(el: Element | null): boolean {
   if (!el || !el.isConnected) return false;
   const r = el.getBoundingClientRect();
   return r.width > 0 && r.height > 0;
 }
-export function tourGoTo(idx, dir) {
+export function tourGoTo(idx: number, dir: number): void {
   if (idx < 0) return;
   if (idx >= TOUR_STEPS.length) {
     endTour();
@@ -174,7 +189,7 @@ export function tourGoTo(idx, dir) {
   tourIdx = idx;
   showTourCard(step, target);
 }
-function showTourCard(step, target) {
+function showTourCard(step: TourStep, target: Element | null): void {
   $("#tourProgress").textContent = tourIdx + 1 + " / " + TOUR_STEPS.length;
   $("#tourTitle").textContent = step.title;
   $("#tourText").textContent = step.text;
@@ -191,7 +206,7 @@ function onTourResize() {
   const target = step.selector ? tourResolveTarget(step) : null;
   tourLayout(target ? target.getBoundingClientRect() : null);
 }
-function tourLayout(rect) {
+function tourLayout(rect: DOMRect | null): void {
   const vw = innerWidth,
     vh = innerHeight,
     pad = 8,
@@ -262,3 +277,10 @@ export function tourNext(): void {
 export function tourPrev(): void {
   tourGoTo(tourIdx - 1, -1);
 }
+
+export const tourActions: ActionMap = {
+  tutorial: () => startTour(),
+  "tour-skip": () => endTour(),
+  "tour-prev": () => tourPrev(),
+  "tour-next": () => tourNext(),
+};
