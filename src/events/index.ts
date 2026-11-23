@@ -11,6 +11,7 @@
    ========================================================= */
 import { $ } from "../lib/dom";
 import { backupActions, importJSON } from "../features/backup";
+import { mealActions } from "../features/comidas";
 import { accountActions } from "../features/cuenta";
 import { exdbActions } from "../features/exdb";
 import { exerciseActions } from "../features/ejercicios";
@@ -46,6 +47,7 @@ const CLICK_ACTIONS = mergeActions(
   backupActions,
   lightboxActions,
   tourActions,
+  mealActions,
 );
 
 document.addEventListener("click", (ev: any) => {

@@ -56,6 +56,7 @@ export function seedState(): AppState {
     routines: SEED_ROUTINES(),
     sessions: [],
     bw: [],
+    dayLogs: [],
     active: null,
     settings: { ...DEFAULT_SETTINGS },
     ui: { progressEx: "press-inc" },

@@ -12,6 +12,15 @@
      rt_<id>           → rutina
      se_<id>           → sesión terminada
      bw_<fecha>        → pesada
+
+   Las comidas (`dayLogs`) NO viajan todavía, y es a propósito.
+   Un dispositivo con una build que no conoce un tipo de
+   documento igual le estampa el shadow al bajarlo (takeRemote),
+   y en la sincronización siguiente su flatten() no lo emite, así
+   que lo ve como borrado local y sube una lápida. Resultado: una
+   build vieja en caché borra las comidas de TODOS los
+   dispositivos. No se puede arreglar desde el lado nuevo, porque
+   el código que estampa el shadow es el viejo.
    Los borrados dejan lápida ({deleted:true}) para que se
    propaguen a los otros dispositivos.
 
