@@ -38,6 +38,8 @@ export interface AppState {
   routines: any[];
   sessions: any[];
   bw: any[];
+  /** Opcional a proposito: un dispositivo con una build anterior no lo tiene. */
+  dayLogs?: any[];
   active?: unknown;
 }
 
@@ -48,6 +50,7 @@ export function emptyState(): AppState {
     routines: [],
     sessions: [],
     bw: [],
+    dayLogs: [],
     active: null,
   };
 }

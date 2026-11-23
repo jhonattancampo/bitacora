@@ -13,14 +13,18 @@
      se_<id>           → sesión terminada
      bw_<fecha>        → pesada
 
-   Las comidas (`dayLogs`) NO viajan todavía, y es a propósito.
-   Un dispositivo con una build que no conoce un tipo de
-   documento igual le estampa el shadow al bajarlo (takeRemote),
-   y en la sincronización siguiente su flatten() no lo emite, así
-   que lo ve como borrado local y sube una lápida. Resultado: una
-   build vieja en caché borra las comidas de TODOS los
-   dispositivos. No se puede arreglar desde el lado nuevo, porque
-   el código que estampa el shadow es el viejo.
+   Las comidas NO van acá. Viven en users/{uid}/meals, un
+   documento por ítem, y tienen su propia conciliación.
+
+   El motivo es de seguridad, no de orden. Un dispositivo con una
+   build que no conoce un tipo de documento igual le estampa la
+   sombra al bajarlo (takeRemote), y en la sincronización
+   siguiente su flatten() no lo emite, así que lo lee como
+   borrado local y sube una lápida: una build vieja en caché
+   borraría las comidas de TODOS los dispositivos, y no se puede
+   arreglar desde el lado nuevo porque el código que estampa la
+   sombra es el viejo. En una colección aparte ese camino no
+   existe, porque la build vieja ni siquiera la lee.
    Los borrados dejan lápida ({deleted:true}) para que se
    propaguen a los otros dispositivos.
 
@@ -61,6 +65,8 @@ const Sync: SyncApi = (function () {
   type Shadow = Record<string, ShadowEntry>;
 
   const SHADOW_KEY = "bitacora_shadow_v2";
+  const MEALS_SHADOW_KEY = "bitacora_meals_shadow_v1";
+  const MEALS_PULL_KEY = "bitacora_meals_lastpull";
   const S: SyncState = { ready: false, user: null, status: "local", msg: "", last: null, busy: false };
   const listeners: ((s: SyncState) => void)[] = [];
   let mods: any = null, fb: any = null, timer: ReturnType<typeof setTimeout> | null = null, bootP: Promise<any> | null = null;
@@ -177,6 +183,189 @@ const Sync: SyncApi = (function () {
     if (doc.deleted) { if (i >= 0) st[key].splice(i, 1); return; }
     if (!doc.data) return;
     if (i >= 0) st[key][i] = doc.data; else st[key].push(doc.data);
+  }
+
+  /* ---------- comidas ----------
+     Viven en users/{uid}/meals, una colección aparte, y la razón no es de
+     orden: es que una build que no conoce este tipo de documento NUNCA LO
+     LEE. Su getDocs solo recorre `items`, así que no puede bajarlo, no le
+     estampa la sombra, y en la sincronización siguiente no lo ve como
+     ausente ni sube una lápida por él. Dentro de `items` ese camino existe
+     y borraba el historial de comidas en todos los dispositivos; acá no
+     existe, y no por disciplina sino por construcción.
+
+     Un documento por ÍTEM, no por día. Dos dispositivos que registran
+     comidas distintas la misma fecha escriben documentos distintos y no se
+     pisan. Un documento por día obligaría a resolver el día entero por
+     reloj, y el que llegara segundo perdería su comida. El id del ítem ya
+     es único en todo el estado, así que es el id del documento.
+
+     Los ítems son inmutables: se agregan o se borran, nunca se editan. Eso
+     hace que acá no haga falta resolver conflictos de contenido, solo de
+     presencia. */
+
+  interface MealDoc {
+    date: string;
+    slotId: string;
+    item: { id: string; [k: string]: unknown };
+  }
+
+  const mealShadow = (): Record<string, number> => {
+    try {
+      return JSON.parse(localStorage.getItem(MEALS_SHADOW_KEY) || "null") || {};
+    } catch (e) {
+      return {};
+    }
+  };
+  const saveMealShadow = (o: Record<string, number>) => {
+    try {
+      localStorage.setItem(MEALS_SHADOW_KEY, JSON.stringify(o));
+    } catch (e) {}
+  };
+
+  /** Cada ítem registrado, aplanado a un documento, indexado por su propio id. */
+  function flattenMeals(st: any): Record<string, MealDoc> {
+    const m: Record<string, MealDoc> = {};
+    (st.dayLogs || []).forEach((d: any) =>
+      (d.slots || []).forEach((s: any) =>
+        (s.items || []).forEach((it: any) => {
+          if (it && it.id) m[it.id] = { date: d.date, slotId: s.slotId, item: it };
+        }),
+      ),
+    );
+    return m;
+  }
+
+  function addMeal(st: any, d: MealDoc) {
+    if (!d || !d.date || !d.slotId || !d.item || !d.item.id) return;
+    st.dayLogs = st.dayLogs || [];
+    let day = st.dayLogs.find((x: any) => x.date === d.date);
+    if (!day) {
+      day = { date: d.date, slots: [] };
+      st.dayLogs.push(day);
+    }
+    day.slots = day.slots || [];
+    let slot = day.slots.find((x: any) => x.slotId === d.slotId);
+    if (!slot) {
+      slot = { slotId: d.slotId, items: [] };
+      day.slots.push(slot);
+    }
+    slot.items = slot.items || [];
+    if (!slot.items.some((x: any) => x && x.id === d.item.id)) slot.items.push(d.item);
+  }
+
+  function removeMeal(st: any, itemId: string) {
+    const days = st.dayLogs || [];
+    for (let di = days.length - 1; di >= 0; di--) {
+      const day = days[di];
+      const slots = day.slots || [];
+      for (let si = slots.length - 1; si >= 0; si--) {
+        const items = slots[si].items || [];
+        const i = items.findIndex((x: any) => x && x.id === itemId);
+        if (i >= 0) items.splice(i, 1);
+        // Un slot sin ítems no es una comida registrada, y un día sin slots no
+        // es un día comido: dejarlos haría que el día contara como hecho.
+        if (items.length === 0) slots.splice(si, 1);
+      }
+      if (slots.length === 0) days.splice(di, 1);
+    }
+  }
+
+  /**
+   * Concilia las comidas contra su propia colección.
+   *
+   * Devuelve cuántos documentos se subieron y cuántos se aplicaron, para que
+   * el que llama decida si hace falta redibujar.
+   */
+  async function syncMeals(f: any, st: any, now: number): Promise<{ push: number; pulled: number }> {
+    const { collection, doc, getDocs, query, where, writeBatch } = f.m.fs;
+    const col = collection(f.db, "users", S.user!.uid, "meals");
+
+    const local = flattenMeals(st);
+    const sh = mealShadow();
+    const lastPull = Number(localStorage.getItem(MEALS_PULL_KEY) || 0);
+    const first = !Object.keys(sh).length;
+
+    /* El snapshot viene de la SDK que se carga por CDN y no trae tipos. */
+    const snap: any =
+      first || !lastPull
+        ? await withTimeout(getDocs(col), "Bajando comidas")
+        : await withTimeout(
+            getDocs(query(col, where("updatedAt", ">", lastPull - 300000))),
+            "Bajando comidas",
+          );
+
+    // Misma guarda que la colección principal: una lectura servida de
+    // IndexedDB no es una sincronización, y estampar la sombra con ella deja
+    // al dispositivo convencido de haber subido lo que nunca salió.
+    if (snap.metadata && snap.metadata.fromCache) throw new Error("Sin conexión real");
+
+    const remote: Record<string, Doc> = {};
+    snap.forEach((d: any) => (remote[d.id] = d.data()));
+
+    const push: { id: string; body: Doc }[] = [];
+    let pulled = 0;
+
+    const ids = new Set(Object.keys(local).concat(Object.keys(sh), Object.keys(remote)));
+    ids.forEach((id) => {
+      const L = local[id];
+      const R = remote[id];
+      const conocido = Object.prototype.hasOwnProperty.call(sh, id);
+
+      if (R && R.deleted) {
+        // Borrado en otro lado. Gana el borrado: los ítems no se editan, así
+        // que un id que volvió a aparecer sería otro ítem con otro id.
+        if (L) {
+          removeMeal(st, id);
+          pulled++;
+        }
+        sh[id] = R.updatedAt || now;
+        return;
+      }
+
+      if (R && !L) {
+        if (conocido) {
+          // Lo teníamos, ya no está: se borró acá. Lápida.
+          push.push({ id, body: { type: "meal", data: null, deleted: true, updatedAt: now } });
+          sh[id] = now;
+        } else {
+          addMeal(st, R.data as unknown as MealDoc);
+          pulled++;
+          sh[id] = R.updatedAt || now;
+        }
+        return;
+      }
+
+      if (L && !R) {
+        // Sin noticias de la nube. Si nunca lo subimos, subirlo.
+        if (!conocido) {
+          push.push({ id, body: { type: "meal", data: L as unknown as Doc["data"], deleted: false, updatedAt: now } });
+          sh[id] = now;
+        }
+        return;
+      }
+
+      if (!L && !R && conocido) {
+        // Estaba, lo borramos acá, y la nube no lo mandó en esta lectura
+        // incremental porque no cambió allá.
+        push.push({ id, body: { type: "meal", data: null, deleted: true, updatedAt: now } });
+        sh[id] = now;
+        return;
+      }
+
+      // En los dos lados: los ítems son inmutables, no hay nada que resolver.
+      if (L && R) sh[id] = R.updatedAt || sh[id] || now;
+    });
+
+    for (let i = 0; i < push.length; i += 400) {
+      const batch = writeBatch(f.db);
+      push.slice(i, i + 400).forEach((pch) => batch.set(doc(col, pch.id), pch.body));
+      await withTimeout(batch.commit(), "Subiendo comidas");
+    }
+
+    saveMealShadow(sh);
+    localStorage.setItem(MEALS_PULL_KEY, String(now));
+    return { push: push.length, pulled };
   }
 
   /* ---------- sincronización ---------- */
@@ -311,9 +500,16 @@ const Sync: SyncApi = (function () {
 
       saveShadow(sh);
       localStorage.setItem("bitacora_lastpull", String(now));
+
+      // Las comidas van después y sobre la misma copia, así una sola
+      // adopción deja el estado completo y la app se redibuja una vez.
+      const meals = await syncMeals(f, st, now);
+      pulled += meals.pulled;
+      const pushTotal = push.length + meals.push;
+
       if (pulled) App.adoptState(st);
       S.last = now;
-      setStatus("ok", (push.length ? "↑" + push.length + " " : "") + (pulled ? "↓" + pulled : "") || "Al día");
+      setStatus("ok", (pushTotal ? "↑" + pushTotal + " " : "") + (pulled ? "↓" + pulled : "") || "Al día");
     } catch (e) {
       console.warn("[sync]", e);
       setStatus("error", errText(e));
