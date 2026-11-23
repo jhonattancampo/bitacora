@@ -8,6 +8,13 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // Las comidas, en su propia colección. Está aparte a propósito: una
+    // build que no las conoce ni siquiera lee esta ruta, así que no puede
+    // darlas por ausentes ni borrarlas.
+    match /users/{uid}/meals/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
     // Todo lo demás queda cerrado.
     match /{document=**} {
       allow read, write: if false;

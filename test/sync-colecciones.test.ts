@@ -76,23 +76,22 @@ describe("toda coleccion que sube tiene que poder bajar", () => {
   });
 });
 
-describe("las comidas NO se sincronizan todavia, y es a proposito", () => {
-  it("dayLogs no esta en flatten ni en ARR", () => {
-    // Un dispositivo con una build que no conoce un tipo de documento igual
-    // le estampa el shadow al bajarlo (takeRemote), y en la sincronizacion
-    // siguiente su flatten() no lo emite, asi que lo lee como borrado local y
-    // sube una lapida. Una build vieja en cache borra las comidas de TODOS
-    // los dispositivos, y no se puede arreglar desde el lado nuevo porque el
-    // codigo que estampa el shadow es el viejo.
+describe("las comidas NO viajan por la coleccion principal", () => {
+  it("no estan en flatten ni en ARR", () => {
+    // Viven en users/{uid}/meals, aparte, y tienen su propia conciliacion
+    // (ver sync-comidas.test.ts). No es una cuestion de orden: adentro de
+    // `items`, un dispositivo con una build que no conoce el tipo le estampa
+    // la sombra al bajarlo y en la sincronizacion siguiente lo ve ausente de
+    // su flatten() y sube una lapida, borrando las comidas en TODOS los
+    // dispositivos. En una coleccion aparte ni siquiera la lee.
     //
-    // Si vas a agregarlo, primero hace falta una forma de que una build que
-    // no entiende un tipo no suba lapidas por el. Borrar este test no
-    // alcanza.
+    // Si las traes para aca, ese camino vuelve. Borrar este test no alcanza.
     expect(prefijosQueSuben()).not.toContain("dl");
     expect(prefijosQueBajan()).not.toContain("dl");
   });
 
   it("y la cabecera explica por que", () => {
-    expect(FUENTE.slice(0, FUENTE.indexOf("*/"))).toContain("dayLogs");
+    const cabecera = FUENTE.slice(0, FUENTE.indexOf("*/"));
+    expect(cabecera).toContain("users/{uid}/meals");
   });
 });

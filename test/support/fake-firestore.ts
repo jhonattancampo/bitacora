@@ -22,18 +22,32 @@ export interface FakeServerOptions {
 }
 
 export class FakeServer {
-  /** docId -> stored body. This is the shared cloud both clients talk to. */
+  /** docId -> stored body for `users/{uid}/items`. The shared cloud both clients talk to. */
   readonly docs = new Map<string, DocBody>();
+  /**
+   * `users/{uid}/meals`, kept apart on purpose.
+   *
+   * The whole reason meals live in their own collection is that a build which
+   * does not know about them never reads them, so it can never decide they are
+   * missing and tombstone them. A fake that lumps every collection into one
+   * map cannot show that, so this one keeps them separate like the real thing.
+   */
+  readonly meals = new Map<string, DocBody>();
   readonly options: FakeServerOptions = {};
   /** Every getDocs() the clients made, for assertions about incremental reads. */
-  readonly reads: Array<{ since: number | null }> = [];
+  readonly reads: Array<{ since: number | null; path: string }> = [];
   /** Every document written, in order. */
   readonly writes: string[] = [];
 
-  snapshotOf(since: number | null): DocBody[] & { ids: string[] } {
+  /** The map a collection path resolves to. */
+  collectionAt(path: string): Map<string, DocBody> {
+    return path.endsWith("/meals") ? this.meals : this.docs;
+  }
+
+  snapshotOf(path: string, since: number | null): DocBody[] & { ids: string[] } {
     const ids: string[] = [];
     const out: DocBody[] = [];
-    for (const [id, body] of this.docs) {
+    for (const [id, body] of this.collectionAt(path)) {
       if (since != null && !((body.updatedAt || 0) > since)) continue;
       ids.push(id);
       out.push(body);
@@ -60,11 +74,11 @@ export function fakeBackend(server: FakeServer) {
       since: constraints.length ? constraints[0].value : null,
     }),
 
-    getDocs: (target: { since?: number | null }) => {
+    getDocs: (target: { since?: number | null; __col: string }) => {
       const since = target.since ?? null;
-      server.reads.push({ since });
+      server.reads.push({ since, path: target.__col });
       if (server.options.hangGetDocs) return new Promise(() => {});
-      const bodies = server.snapshotOf(since);
+      const bodies = server.snapshotOf(target.__col, since);
       const ids = bodies.ids;
       return Promise.resolve({
         metadata: { fromCache: !!server.options.fromCache },
@@ -75,14 +89,14 @@ export function fakeBackend(server: FakeServer) {
     },
 
     writeBatch: () => {
-      const ops: Array<[string, DocBody]> = [];
+      const ops: Array<[string, string, DocBody]> = [];
       return {
-        set(ref: { id: string }, body: DocBody) {
-          ops.push([ref.id, clone(body)]);
+        set(ref: { __col: string; id: string }, body: DocBody) {
+          ops.push([ref.__col, ref.id, clone(body)]);
         },
         commit: () => {
-          ops.forEach(([id, body]) => {
-            server.docs.set(id, body);
+          ops.forEach(([col, id, body]) => {
+            server.collectionAt(col).set(id, body);
             server.writes.push(id);
           });
           return Promise.resolve();
