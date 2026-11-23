@@ -23,8 +23,9 @@
    function only what is left.
    ========================================================= */
 
-import type { Food, Quantity } from "./types";
+import type { Food, Quantity, QuantityUnit } from "./types";
 import { normalize, tokens } from "./text";
+import type { Measure } from "./measures";
 import { measureForWord } from "./measures";
 
 /** Written-out numbers, as people actually type them. */
@@ -120,6 +121,24 @@ const unitCount = (ts: string[]): number => {
 };
 
 /**
+ * Which dimension a household measure is recorded in.
+ *
+ * A measure describes a PORTION — a spoonful, a cup — and the dimension
+ * follows the food, not the table. A tablespoon is listed at 12 g, but olive
+ * oil is listed per 100 ml, and refusing to reconcile the two meant "una
+ * cucharada de aceite" could not be worked out at all. Liquids are taken at
+ * 1 g per ml, which is exactly right for water, milk and juice and a few per
+ * cent off for oil: much closer than the nothing it replaces.
+ *
+ * With no food in hand the table's own dimension stands.
+ */
+const measureUnit = (measure: Measure, food?: Pick<Food, "basis">): QuantityUnit => {
+  if (food?.basis === "per100ml") return "ml";
+  if (food?.basis === "per100g") return "g";
+  return measure.grams != null ? "g" : "ml";
+};
+
+/**
  * Reads the quantity out of one line of text.
  *
  * `food` is optional because the quantity is sometimes parsed before anything
@@ -153,13 +172,10 @@ export function parseQuantity(text: string, food?: Pick<Food, "basis">): Quantit
   for (let i = 0; i < ts.length; i++) {
     const hit = measureForWord(ts[i]);
     if (!hit) continue;
+    const amount = hit.measure.grams ?? hit.measure.ml;
+    if (amount == null) continue;
     const n = numberBefore(ts, i) ?? 1;
-    if (hit.measure.grams != null) {
-      return { qty: round2(n * hit.measure.grams), unit: "g", measure: hit.name };
-    }
-    if (hit.measure.ml != null) {
-      return { qty: round2(n * hit.measure.ml), unit: "ml", measure: hit.name };
-    }
+    return { qty: round2(n * amount), unit: measureUnit(hit.measure, food), measure: hit.name };
   }
 
   // 4. Nothing was said.
