@@ -125,3 +125,36 @@ describe("LIMITACION CONOCIDA del piso de 4", () => {
     expect(searchFoods(catalogo, "pan", 3)[0].food.name).toBe("Pan integral");
   });
 });
+
+describe("una palabra larga que no identifica nada", () => {
+  const catalogo = [food("Pan lactal"), food("Arroz integral")];
+
+  it("no alcanza para devolver un alimento equivocado", () => {
+    // 'integral' mide 8. Sin marcarla como generica, "pan integral" devolvia
+    // "Arroz integral" con puntaje 8: el alimento equivocado, guardado en
+    // silencio, que es justo lo que el piso de puntaje existe para evitar.
+    const nombres = searchFoods(catalogo, "pan integral").map((m) => m.food.name);
+    expect(nombres).not.toContain("Arroz integral");
+  });
+
+  it("pero sigue desempatando cuando la palabra principal coincide", () => {
+    const arroces = [food("Arroz blanco"), food("Arroz integral")];
+    expect(searchFoods(arroces, "arroz integral")[0].food.name).toBe("Arroz integral");
+  });
+});
+
+describe("el plural de las palabras cortas", () => {
+  it("se junta con su singular: 'uvas' encuentra 'Uva'", () => {
+    expect(stem("uvas")).toBe(stem("uva"));
+    expect(stem("ajos")).toBe(stem("ajo"));
+    expect(stem("aves")).toBe(stem("ave"));
+  });
+
+  it("LIMITE: los plurales irregulares no se juntan", () => {
+    expect(stem("nueces")).not.toBe(stem("nuez"));
+  });
+
+  it("LIMITE: sacar la vocal final junta pares de genero que son alimentos distintos", () => {
+    expect(stem("pimiento")).toBe(stem("pimienta"));
+  });
+});

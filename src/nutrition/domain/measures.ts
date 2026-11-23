@@ -13,7 +13,7 @@
    both find the same row without the table having to spell both.
    ========================================================= */
 
-import { stem, normalize } from "./text";
+import { normalize } from "./text";
 
 export interface Measure {
   /** What one of them weighs. Set this or `ml`, never both. */
@@ -33,14 +33,24 @@ export const HOUSEHOLD_MEASURES: Record<string, Measure> = {
   vaso: { ml: 200 },
 };
 
-/** Root -> measure, so a plural or an accent-less spelling still lands on the row. */
-const BY_ROOT: Map<string, { name: string; measure: Measure }> = new Map(
-  Object.entries(HOUSEHOLD_MEASURES).map(([name, measure]) => [
-    stem(normalize(name)),
-    { name, measure },
-  ]),
+/**
+ * The spellings a row answers to: the word itself and its plural.
+ *
+ * Deliberately NOT the stem. Stemming the table merges rows with words that
+ * have nothing to do with them: "copos" and "copa" share the root "cop", so
+ * "2 copos de avena" was being read as two wine glasses, 300 ml of oats.
+ */
+const spellings = (name: string): string[] => {
+  const w = normalize(name);
+  return /[aeiou]$/.test(w) ? [w, w + "s"] : [w, w + "s", w + "es"];
+};
+
+const BY_WORD: Map<string, { name: string; measure: Measure }> = new Map(
+  Object.entries(HOUSEHOLD_MEASURES).flatMap(([name, measure]) =>
+    spellings(name).map((w) => [w, { name, measure }] as const),
+  ),
 );
 
-/** The measure a single word names, or null when it names none. */
-export const measureForRoot = (root: string): { name: string; measure: Measure } | null =>
-  BY_ROOT.get(root) ?? null;
+/** The measure a single written word names, or null when it names none. */
+export const measureForWord = (word: string): { name: string; measure: Measure } | null =>
+  BY_WORD.get(word) ?? null;

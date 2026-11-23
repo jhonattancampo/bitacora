@@ -40,7 +40,14 @@ export const STOP_WORDS: Set<string> = asRoots([
   "en",
 ]);
 
-/** Preparation and qualifier words. They score 1, whatever their length. */
+/**
+ * Preparation and qualifier words. They score 1, whatever their length.
+ *
+ * The variety words at the end matter as much as the cooking ones. "integral"
+ * is eight letters long and identifies nothing on its own: without it here,
+ * "pan integral" scores 8 against "Arroz integral" and logs the wrong food,
+ * which is the exact failure this whole rule exists to prevent.
+ */
 export const GENERIC_WORDS: Set<string> = asRoots([
   "cocido",
   "cocida",
@@ -60,6 +67,16 @@ export const GENERIC_WORDS: Set<string> = asRoots([
   "entera",
   "descremado",
   "desnatado",
+  "integral",
+  "comun",
+  "casero",
+  "casera",
+  "dietetico",
+  "diet",
+  "blanco",
+  "blanca",
+  "negro",
+  "negra",
 ]);
 
 export const isStopWord = (root: string): boolean => STOP_WORDS.has(root);

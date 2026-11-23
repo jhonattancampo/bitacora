@@ -114,3 +114,47 @@ describe("4. cuando no dijeron nada", () => {
     expect(parseQuantity("algo rarisimo")).toEqual({ qty: 100, unit: "g" });
   });
 });
+
+describe("numeros como los escribe la gente", () => {
+  it("entiende las fracciones", () => {
+    expect(parseQuantity("1/2 taza de arroz", PESADO).qty).toBe(90);
+    expect(parseQuantity("1 1/2 tazas de arroz", PESADO).qty).toBe(270);
+  });
+
+  it("lee el punto como separador de miles, no como decimal", () => {
+    // "1.500 g" es kilo y medio. Leerlo como 1,5 g es un error de mil veces.
+    expect(parseQuantity("1.500 g de carne", PESADO).qty).toBe(1500);
+    expect(parseQuantity("1,5 kg de carne", PESADO).qty).toBe(1500);
+  });
+
+  it("acepta las abreviaturas que se usan de verdad", () => {
+    expect(parseQuantity("50 grs de pollo", PESADO)).toMatchObject({ qty: 50, unit: "g" });
+    expect(parseQuantity("2 lts de agua", LIQUIDO)).toMatchObject({ qty: 2000, unit: "ml" });
+    expect(parseQuantity("250 mililitros de leche", LIQUIDO)).toMatchObject({
+      qty: 250,
+      unit: "ml",
+    });
+  });
+
+  it("y por eso no se le escapa un gramaje a la regla de las unidades", () => {
+    // Antes "50 grs de pan" con el pan por unidad daba 50 UNIDADES de pan.
+    expect(parseQuantity("50 grs de pan", CONTADO)).toMatchObject({ qty: 50, unit: "g" });
+  });
+
+  it("cuenta las docenas como docenas", () => {
+    expect(parseQuantity("media docena de huevos", CONTADO)).toEqual({ qty: 6, unit: "unit" });
+    expect(parseQuantity("una docena de huevos", CONTADO)).toEqual({ qty: 12, unit: "unit" });
+  });
+});
+
+describe("palabras que se parecen a una medida pero no lo son", () => {
+  it("'copos' no es 'copas'", () => {
+    // La tabla se indexaba por raiz, y "copos" y "copa" comparten "cop":
+    // "2 copos de avena" se leia como dos copas, 300 ml.
+    expect(parseQuantity("2 copos de avena", PESADO)).toEqual({ qty: 100, unit: "g" });
+  });
+
+  it("pero el plural real sigue entrando", () => {
+    expect(parseQuantity("2 copas de vino", LIQUIDO).qty).toBe(300);
+  });
+});

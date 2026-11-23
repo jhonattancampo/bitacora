@@ -25,13 +25,20 @@ export const words = (s: string): string[] =>
  * The root of a Spanish word, so "cocida", "cocido" and "cocidos" meet at "cocid".
  *
  * Plural first, then gender, because "aceites" has to lose both to reach the
- * same place as "aceite". Short words are left alone: cutting "pan" or "uva"
- * would merge foods that have nothing to do with each other.
+ * same place as "aceite". The two plural rules have different guards on
+ * purpose: a plain "s" comes off four-letter words so "uvas" reaches "uva",
+ * while "es" needs five, so "aves" loses only its "s" and still meets "ave".
+ *
+ * Two limits worth knowing, both inherent to a rule this small:
+ * irregular plurals do not join ("nuez" / "nueces", "pez" / "peces"), and
+ * dropping the final vowel merges gender pairs that are different foods
+ * ("pimiento" / "pimienta"). Fixing either needs a real stemmer or an
+ * exceptions list; neither is worth it until the catalog asks for it.
  */
 export const stem = (w: string): string => {
   let r = w;
   if (r.length > 4 && r.endsWith("es")) r = r.slice(0, -2);
-  else if (r.length > 4 && r.endsWith("s")) r = r.slice(0, -1);
+  else if (r.length > 3 && r.endsWith("s")) r = r.slice(0, -1);
   if (r.length > 3 && /[oae]$/.test(r)) r = r.slice(0, -1);
   return r;
 };
@@ -48,4 +55,5 @@ export const stemSet = (s: string): Set<string> => new Set(stems(s));
  * `words()` is not enough here: it splits on every non-letter, so "1,5 tazas"
  * would arrive as "1", "5", "tazas" and the parser would read five cups.
  */
-export const tokens = (s: string): string[] => normalize(s).match(/\d+(?:[.,]\d+)?|[a-z]+/g) ?? [];
+export const tokens = (s: string): string[] =>
+  normalize(s).match(/\d+\/\d+|\d+(?:[.,]\d+)?|[a-z]+/g) ?? [];
