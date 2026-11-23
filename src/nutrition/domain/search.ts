@@ -71,9 +71,22 @@ export function searchFoods(
     );
 }
 
-/** The single best match, or null when nothing cleared the threshold. */
+/**
+ * The best match with its detail, or null when nothing cleared the threshold.
+ *
+ * `matched` is the part callers outside this module need: knowing WHICH words
+ * named the food is what lets them take those words out before reading a
+ * quantity, so the three in "pizza tres quesos" is not mistaken for one.
+ */
+export const bestMatch = (
+  catalog: Food[],
+  query: string,
+  minScore: number = MIN_SCORE,
+): FoodMatch | null => searchFoods(catalog, query, minScore)[0] ?? null;
+
+/** The single best food, for callers that only need the entry itself. */
 export const bestFood = (
   catalog: Food[],
   query: string,
   minScore: number = MIN_SCORE,
-): Food | null => searchFoods(catalog, query, minScore)[0]?.food ?? null;
+): Food | null => bestMatch(catalog, query, minScore)?.food ?? null;

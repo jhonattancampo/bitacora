@@ -158,3 +158,23 @@ describe("palabras que se parecen a una medida pero no lo son", () => {
     expect(parseQuantity("2 copas de vino", LIQUIDO).qty).toBe(300);
   });
 });
+
+describe("la dimension de una medida casera la define el alimento", () => {
+  it("una cucharada de algo que se mide en ml sale en ml", () => {
+    // El aceite se lista per100ml y 'cucharada' vale 12 g. Antes esto no se
+    // podia convertir y una linea cotidiana quedaba sin calcular.
+    expect(parseQuantity("una cucharada de aceite", LIQUIDO)).toMatchObject({
+      qty: 12,
+      unit: "ml",
+    });
+  });
+
+  it("y una copa de algo que se pesa sale en gramos", () => {
+    expect(parseQuantity("una copa de arroz", PESADO)).toMatchObject({ qty: 150, unit: "g" });
+  });
+
+  it("sin saber el alimento, manda la dimension de la tabla", () => {
+    expect(parseQuantity("una taza").unit).toBe("g");
+    expect(parseQuantity("un vaso").unit).toBe("ml");
+  });
+});
