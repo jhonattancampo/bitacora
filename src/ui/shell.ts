@@ -13,6 +13,7 @@ import { viewExercises } from "../views/ejercicios";
 import { viewProgress } from "../views/progreso";
 import { viewRoutines } from "../views/rutinas";
 import { viewSettings } from "../views/ajustes";
+import { viewMeals } from "../views/comidas";
 import { viewTrain } from "../views/entrenar";
 import type { ViewName } from "../types";
 import type { ActionMap } from "../events/types";
@@ -20,6 +21,7 @@ import { closeSheet } from "./sheet";
 
 const VIEWS: Record<ViewName, () => string> = {
   train: viewTrain,
+  meals: viewMeals,
   routines: viewRoutines,
   exercises: viewExercises,
   progress: viewProgress,

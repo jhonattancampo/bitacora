@@ -71,6 +71,7 @@ async function tablaDeAcciones(): Promise<Set<string>> {
     { backupActions },
     { lightboxActions },
     { tourActions },
+    { mealActions },
   ] = await Promise.all([
     import("../src/ui/shell"),
     import("../src/ui/sheet"),
@@ -87,6 +88,7 @@ async function tablaDeAcciones(): Promise<Set<string>> {
     import("../src/features/backup"),
     import("../src/features/lightbox"),
     import("../src/features/tour"),
+    import("../src/features/comidas"),
   ]);
   return new Set([
     ...Object.keys(CHANGE_ACTIONS),
@@ -107,6 +109,7 @@ async function tablaDeAcciones(): Promise<Set<string>> {
         backupActions,
         lightboxActions,
         tourActions,
+        mealActions,
       ),
     ),
   ]);

@@ -11,6 +11,7 @@ import { $, dl } from "../lib/dom";
 import { today } from "../lib/format";
 import { doneSessions, exById } from "../state/selectors";
 import { DEFAULT_SETTINGS, save, setState, state } from "../state/store";
+import { mergeNutrition } from "../state/migrate";
 import { render } from "../ui/shell";
 import { toast } from "../ui/toast";
 import type { AppState } from "../types";
@@ -61,6 +62,10 @@ export function importJSON(file: File): void {
       setState(o);
       state.settings = Object.assign({ ...DEFAULT_SETTINGS }, state.settings || {});
       state.ui = state.ui || {};
+      // importJSON no pasa por migrate(), asi que cada coleccion nueva tiene
+      // que rellenarse aca o una copia vieja la deja en undefined.
+      state.dayLogs = state.dayLogs || [];
+      state.settings.nutrition = mergeNutrition(state.settings.nutrition);
       save(true);
       render();
       toast("Datos importados");

@@ -9,28 +9,32 @@
    ========================================================= */
 import { save, state } from "../state/store";
 import { render } from "../ui/shell";
+import { mealChangeActions } from "../features/comidas";
 import { mergeActions } from "./types";
 
 /** Rest por defecto cuando el campo queda vacio o con basura. */
 const DEFAULT_REST_S = 90;
 
-export const CHANGE_ACTIONS = mergeActions({
-  pex: ({ el }) => {
-    state.ui.progressEx = el.value;
-    save();
-    render();
-  },
-  /* El buscador de la biblioteca se atiende en `input`, no en `change`. Esta
-     entrada existe para que no siga de largo hasta la lectura de fila. */
-  exq: () => {},
-  "set-rest": ({ el }) => {
-    state.settings.rest = parseInt(el.value) || DEFAULT_REST_S;
-    save();
-  },
-  "s-note": ({ el }) => {
-    if (state.active) {
-      state.active.notes = el.value;
+export const CHANGE_ACTIONS = mergeActions(
+  {
+    pex: ({ el }) => {
+      state.ui.progressEx = el.value;
       save();
-    }
+      render();
+    },
+    /* El buscador de la biblioteca se atiende en `input`, no en `change`. Esta
+     entrada existe para que no siga de largo hasta la lectura de fila. */
+    exq: () => {},
+    "set-rest": ({ el }) => {
+      state.settings.rest = parseInt(el.value) || DEFAULT_REST_S;
+      save();
+    },
+    "s-note": ({ el }) => {
+      if (state.active) {
+        state.active.notes = el.value;
+        save();
+      }
+    },
   },
-});
+  mealChangeActions,
+);

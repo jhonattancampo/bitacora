@@ -1,3 +1,5 @@
+import type { DayLog, Macros, MealSlot } from "./nutrition/domain/types";
+
 /* =========================================================
    types.ts — The shapes the app stores and syncs.
 
@@ -117,6 +119,30 @@ export interface BodyWeight {
   kg: number;
 }
 
+/**
+ * The eating plan: the day's target, the meals it is split across, and the
+ * split itself. It lives in Settings because it is configuration, and because
+ * sync already merges settings as one document — adding a second singleton
+ * would mean new code in the riskiest function in sync.ts.
+ */
+export interface NutritionSettings {
+  /** What the whole day is aiming at. */
+  daily: Macros;
+  /** The meals of the day, in the order they are eaten. */
+  slots: MealSlot[];
+  /** How the daily target is split across the slots, keyed by slot id. */
+  perSlot: Record<string, Macros>;
+  /**
+   * Where to ask for an estimate of what the catalog could not resolve.
+   *
+   * Empty or missing means no estimates: the port reports itself unavailable
+   * and the app works on the catalog alone, saying so. It points at a function
+   * of your own holding the API key, never straight at a model provider —
+   * that would ship the key to every browser that opens the app.
+   */
+  llmEndpoint?: string;
+}
+
 export interface Settings {
   /** Default rest in seconds, used when the item has none. */
   rest: number;
@@ -128,6 +154,7 @@ export interface Settings {
   wake: boolean;
   theme: string;
   accent: string;
+  nutrition: NutritionSettings;
 }
 
 /** Where the user last was. Persisted so the app reopens where they left it. */
@@ -135,6 +162,12 @@ export interface UiState {
   progressEx?: string;
   ptab?: string;
   exq?: string;
+  /**
+   * What is half-typed in each meal's box, by slot id. The app re-renders the
+   * whole screen on almost every action, so without this a half-written meal
+   * disappears the moment anything else is touched.
+   */
+  mealText?: Record<string, string>;
 }
 
 export interface AppState {
@@ -143,6 +176,8 @@ export interface AppState {
   routines: Routine[];
   sessions: Session[];
   bw: BodyWeight[];
+  /** What was eaten, one entry per date. */
+  dayLogs: DayLog[];
   /** The workout in progress, or null. Never synced: it belongs to this device. */
   active: Session | null;
   settings: Settings;
@@ -151,5 +186,5 @@ export interface AppState {
   updatedAt?: number;
 }
 
-/** The five screens the bottom nav switches between. */
-export type ViewName = "train" | "routines" | "exercises" | "progress" | "settings";
+/** The six screens the bottom nav switches between. */
+export type ViewName = "train" | "meals" | "routines" | "exercises" | "progress" | "settings";
