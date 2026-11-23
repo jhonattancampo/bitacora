@@ -145,7 +145,7 @@ export function viewMeals(): string {
             <button class="btn primary sm mt-2" data-act="meal-parse" data-e="${esc(slot.id)}">Calcular</button>
           </div>`;
 
-      return `<div class="card">
+      return `<div class="card" data-slot="${esc(slot.id)}">
         <div class="between">
           <div class="h2">${esc(slot.name)}</div>
           ${esProxima ? `<span class="chip">próxima</span>` : ""}

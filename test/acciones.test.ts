@@ -150,3 +150,45 @@ describe("mergeActions", () => {
     expect(() => mergeActions({ dup: () => {} }, { dup: () => {} })).toThrow(/dup/);
   });
 });
+
+describe("las tablas de acciones estan enchufadas de verdad", () => {
+  /**
+   * El resto de este archivo arma su PROPIA mezcla de tablas, asi que si una
+   * feature exporta sus acciones y nadie la registra en src/events/index.ts,
+   * los tests pasan y en la app los botones no hacen nada. Esto lee el fuente
+   * y exige que toda tabla exportada este enchufada en alguno de los dos
+   * listeners.
+   */
+  const modulos = (): string[] => {
+    const out: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (e.name.endsWith(".ts")) out.push(full);
+      }
+    };
+    walk(resolve(__dirname, "../src/features"));
+    walk(resolve(__dirname, "../src/ui"));
+    return out;
+  };
+
+  it("toda tabla exportada esta registrada en events/", () => {
+    // Sin los imports: el nombre aparece ahi tambien, asi que comparar contra
+    // el archivo entero daria por registrada una tabla importada y nunca
+    // enchufada. (Probado: con esta linea mal, el test no agarraba nada.)
+    const sinImports = (src: string) => src.replace(/^import[\s\S]*?;$/gm, "");
+    const cableado =
+      sinImports(readFileSync(resolve(__dirname, "../src/events/index.ts"), "utf8")) +
+      sinImports(readFileSync(resolve(__dirname, "../src/events/change.ts"), "utf8"));
+
+    const exportadas = modulos().flatMap((f) =>
+      [...readFileSync(f, "utf8").matchAll(/export const (\w+Actions)\b/g)].map((m) => m[1]),
+    );
+
+    expect(exportadas.length).toBeGreaterThan(5);
+    for (const tabla of exportadas) {
+      expect(cableado, `"${tabla}" se exporta pero no se registra en src/events/`).toContain(tabla);
+    }
+  });
+});

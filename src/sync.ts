@@ -12,7 +12,15 @@
      rt_<id>           → rutina
      se_<id>           → sesión terminada
      bw_<fecha>        → pesada
-     dl_<fecha>        → día de comidas
+
+   Las comidas (`dayLogs`) NO viajan todavía, y es a propósito.
+   Un dispositivo con una build que no conoce un tipo de
+   documento igual le estampa el shadow al bajarlo (takeRemote),
+   y en la sincronización siguiente su flatten() no lo emite, así
+   que lo ve como borrado local y sube una lápida. Resultado: una
+   build vieja en caché borra las comidas de TODOS los
+   dispositivos. No se puede arreglar desde el lado nuevo, porque
+   el código que estampa el shadow es el viejo.
    Los borrados dejan lápida ({deleted:true}) para que se
    propaguen a los otros dispositivos.
 
@@ -146,7 +154,6 @@ const Sync: SyncApi = (function () {
     (st.routines || []).forEach((r: any) => (m["rt_" + r.id] = { type: "rt", data: r }));
     (st.sessions || []).filter((s: any) => s.endedAt).forEach((s: any) => (m["se_" + s.id] = { type: "se", data: s }));
     (st.bw || []).forEach((b: any) => (m["bw_" + b.date] = { type: "bw", data: b }));
-    (st.dayLogs || []).forEach((d: any) => (m["dl_" + d.date] = { type: "dl", data: d }));
     return m;
   }
   function parseId(docId: string) {
@@ -154,7 +161,7 @@ const Sync: SyncApi = (function () {
     const i = docId.indexOf("_");
     return { type: docId.slice(0, i), ref: docId.slice(i + 1) };
   }
-  const ARR: Record<string, [string, string]> = { ex: ["exercises", "id"], rt: ["routines", "id"], se: ["sessions", "id"], bw: ["bw", "date"], dl: ["dayLogs", "date"] };
+  const ARR: Record<string, [string, string]> = { ex: ["exercises", "id"], rt: ["routines", "id"], se: ["sessions", "id"], bw: ["bw", "date"] };
 
   function applyRemote(st: any, docId: string, doc: Doc) {
     const p = parseId(docId);

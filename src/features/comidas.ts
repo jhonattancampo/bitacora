@@ -31,6 +31,17 @@ const api = () =>
     llm: createFetchLlm({ endpoint: state.settings.nutrition.llmEndpoint }),
   });
 
+/**
+ * Vuelve a dejar la comida a la vista despues de redibujar.
+ *
+ * render() manda el scroll arriba de todo, que es lo correcto al cambiar de
+ * pantalla y molesto cuando lo unico que cambio es una tarjeta: tocar
+ * "Calcular" en la cena te mandaba al principio, lejos del resultado.
+ */
+const volverA = (slotId: string): void => {
+  document.querySelector(`[data-slot="${slotId}"]`)?.scrollIntoView({ block: "center" });
+};
+
 /** Lo que hay escrito en la caja de una comida, priorizando lo que se ve en pantalla. */
 const textoDe = (slotId: string): string => {
   const caja = document.querySelector<HTMLTextAreaElement>(
@@ -48,6 +59,7 @@ export const mealActions: ActionMap = {
 
     setDraft({ date, slotId, items: [], unresolved: [], notices: [], pending: true });
     render();
+    volverA(slotId);
 
     api()
       .parseDayLog({ date, slotId, text })
@@ -61,6 +73,7 @@ export const mealActions: ActionMap = {
           pending: false,
         });
         render();
+        volverA(slotId);
       })
       .catch((e: unknown) => {
         // El caso de uso no tira, pero si alguna vez lo hiciera esto no puede
@@ -74,6 +87,7 @@ export const mealActions: ActionMap = {
           pending: false,
         });
         render();
+        volverA(slotId);
       });
   },
 
@@ -82,15 +96,19 @@ export const mealActions: ActionMap = {
     if (!d || d.items.length === 0) return;
     addItems(d.date, d.slotId, d.items);
     if (state.ui.mealText) delete state.ui.mealText[d.slotId];
+    const slotId = d.slotId;
     clearDraft();
     save(true);
     render();
+    volverA(slotId);
     toast(`Guardé ${d.items.length} ${d.items.length === 1 ? "ítem" : "ítems"}`);
   },
 
   "meal-discard": () => {
+    const slotId = getDraft()?.slotId;
     clearDraft();
     render();
+    if (slotId) volverA(slotId);
   },
 
   "meal-del": (ctx) => {
@@ -100,6 +118,7 @@ export const mealActions: ActionMap = {
     if (!id || !slotId || !date) return;
     removeItem(date, slotId, id);
     render();
+    volverA(slotId);
   },
 };
 

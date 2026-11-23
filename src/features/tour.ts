@@ -44,8 +44,8 @@ const TOUR_STEPS: TourStep[] = [
   {
     view: null,
     selector: "nav",
-    title: "Las 5 pestañas",
-    text: "Entrenar arranca tu sesión de hoy. Rutinas son tus plantillas. Ejercicios es tu biblioteca con fotos. Progreso muestra tus gráficos. Ajustes tiene cuenta, PIN, tema y backup.",
+    title: "Las 6 pestañas",
+    text: "Entrenar arranca tu sesión de hoy. Comidas registra lo que comés y te dice cuánto te falta. Rutinas son tus plantillas. Ejercicios es tu biblioteca con fotos. Progreso muestra tus gráficos. Ajustes tiene cuenta, PIN, tema y backup.",
   },
   {
     view: "train",

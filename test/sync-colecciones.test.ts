@@ -75,3 +75,24 @@ describe("toda coleccion que sube tiene que poder bajar", () => {
     expect(prefijosQueSuben()).toEqual(expect.arrayContaining(["ex", "rt", "se", "bw"]));
   });
 });
+
+describe("las comidas NO se sincronizan todavia, y es a proposito", () => {
+  it("dayLogs no esta en flatten ni en ARR", () => {
+    // Un dispositivo con una build que no conoce un tipo de documento igual
+    // le estampa el shadow al bajarlo (takeRemote), y en la sincronizacion
+    // siguiente su flatten() no lo emite, asi que lo lee como borrado local y
+    // sube una lapida. Una build vieja en cache borra las comidas de TODOS
+    // los dispositivos, y no se puede arreglar desde el lado nuevo porque el
+    // codigo que estampa el shadow es el viejo.
+    //
+    // Si vas a agregarlo, primero hace falta una forma de que una build que
+    // no entiende un tipo no suba lapidas por el. Borrar este test no
+    // alcanza.
+    expect(prefijosQueSuben()).not.toContain("dl");
+    expect(prefijosQueBajan()).not.toContain("dl");
+  });
+
+  it("y la cabecera explica por que", () => {
+    expect(FUENTE.slice(0, FUENTE.indexOf("*/"))).toContain("dayLogs");
+  });
+});
