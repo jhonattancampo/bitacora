@@ -164,3 +164,33 @@ describe("POST /day-logs/:date/parse contra el catalogo real", () => {
     expect(r.notices[0].kind).toBe("llm-unavailable");
   });
 });
+
+describe("un puerto de lectura que rompe", () => {
+  it("vuelve como aviso, no como excepcion", async () => {
+    const roto = createNutritionApi({
+      catalog: FOODS,
+      plan: {
+        get: () => {
+          throw new Error("storage caido");
+        },
+      },
+      dayLogs: { get: () => null },
+    });
+
+    const r = await roto.getRemaining({ date: "2026-11-23" });
+    expect(r.notices[0].message).toContain("storage caido");
+  });
+
+  it("y el handler sigue siendo una promesa, no tira en el acto", () => {
+    const roto = createNutritionApi({
+      catalog: FOODS,
+      plan: { get: () => PLAN },
+      dayLogs: {
+        get: () => {
+          throw new Error("caido");
+        },
+      },
+    });
+    expect(() => roto.getRemaining({ date: "2026-11-23" })).not.toThrow();
+  });
+});

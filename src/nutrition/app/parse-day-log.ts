@@ -79,16 +79,22 @@ function withTimeout<T>(work: (signal: AbortSignal) => Promise<T>, ms: number): 
       control.abort();
       reject(new Error(`La consulta tardó más de ${Math.round(ms / 1000)} s`));
     }, ms);
-    work(control.signal).then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error) => {
-        clearTimeout(timer);
-        reject(error);
-      },
-    );
+    // Called through a resolved promise so that a port which throws on the
+    // spot, or hands back something that is not a promise at all, still lands
+    // in the handlers below. Otherwise the 20 s timer is never cleared and
+    // keeps the process awake to abort something that already finished.
+    Promise.resolve()
+      .then(() => work(control.signal))
+      .then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      );
   });
 }
 
@@ -101,9 +107,16 @@ function withTimeout<T>(work: (signal: AbortSignal) => Promise<T>, ms: number): 
  * before the number is read.
  */
 export function quantityText(line: string, matched: string[]): string {
-  const used = new Set(matched);
+  // Once each. In "tres pizzas tres quesos" the name accounts for one "tres"
+  // and the other one is the quantity; dropping both leaves a single pizza.
+  const left = new Set(matched);
   return tokens(line)
-    .filter((t) => !used.has(stem(t)))
+    .filter((t) => {
+      const root = stem(t);
+      if (!left.has(root)) return true;
+      left.delete(root);
+      return false;
+    })
     .join(" ");
 }
 
@@ -190,7 +203,9 @@ export async function parseDayLog(deps: ParseDeps, req: ParseRequest): Promise<P
       return { ...head, items, unresolved, notices };
     }
 
+    const covered = new Set<number>();
     for (const e of estimated) {
+      if (e.index !== undefined && e.index < unresolved.length) covered.add(e.index);
       items.push({
         id: newId(),
         name: e.name,
@@ -201,17 +216,32 @@ export async function parseDayLog(deps: ParseDeps, req: ParseRequest): Promise<P
       });
     }
 
-    if (estimated.length < unresolved.length) {
+    // Counting items against lines proves nothing: two items can both be about
+    // the first line while the second quietly ends up with no numbers and no
+    // complaint. Only an index per item says which line actually came back.
+    if (covered.size === 0) {
       notices.push(
         notice(
           "partial",
-          `Estimé ${estimated.length} de ${unresolved.length} ${unresolved.length === 1 ? "línea" : "líneas"}: revisá ${quoted(unresolved)}.`,
+          `Estimé ${estimated.length} ${estimated.length === 1 ? "ítem" : "ítems"} sin decir a qué línea corresponde cada uno: revisá ${quoted(unresolved)}.`,
           unresolved,
+        ),
+      );
+      return { ...head, items, unresolved: [], notices };
+    }
+
+    const missing = unresolved.filter((_, i) => !covered.has(i));
+    if (missing.length > 0) {
+      notices.push(
+        notice(
+          "unresolved",
+          `Guardé lo que pude calcular. No se pudo calcular ${quoted(missing)}.`,
+          missing,
         ),
       );
     }
 
-    return { ...head, items, unresolved: [], notices };
+    return { ...head, items, unresolved: missing, notices };
   } catch (e) {
     notices.push(
       notice(

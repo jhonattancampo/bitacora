@@ -28,9 +28,11 @@ import { parseStrictJson } from "../ports/llm";
 export const ESTIMATE_CONTRACT = [
   "Recibís un arreglo de líneas de comida en español rioplatense.",
   "Respondés SOLO con JSON válido, sin texto alrededor, con esta forma exacta:",
-  '{ "items": [{ "name": string, "qty": number, "unit": "g" | "ml" | "unit",',
-  '  "kcal": number, "protein": number, "carbs": number, "fat": number }] }',
-  "Un ítem por línea recibida, en el mismo orden.",
+  '{ "items": [{ "index": number, "name": string, "qty": number,',
+  '  "unit": "g" | "ml" | "unit", "kcal": number, "protein": number,',
+  '  "carbs": number, "fat": number }] }',
+  '"index" es la posición de la línea que estás estimando, empezando en 0.',
+  "Es obligatorio: sin él no hay forma de saber qué línea quedó sin calcular.",
   "Los macros son para la cantidad indicada, no para 100 g.",
   "Si una línea no se puede estimar, omitila en vez de inventar números.",
 ].join("\n");

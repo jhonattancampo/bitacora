@@ -12,9 +12,13 @@
      const api = createNutritionApi(deps);
      for (const route of ROUTES) {
        server[route.method.toLowerCase()](route.path, async (req, res) =>
-         res.json(await api[route.handler]({ ...req.params, ...req.body })),
+         res.json(await api[route.handler]({ ...req.body, ...req.params })),
        );
      }
+
+   The path params go LAST. Spread the other way round and a body carrying
+   its own `date` quietly overrides the one in the URL, so a POST to
+   /day-logs/2026-01-01/parse writes to whatever date the body felt like.
 
    Which is also how Nutrect gets to read the same numbers the
    app shows, without a second implementation drifting out of
@@ -69,14 +73,21 @@ export interface NutritionDeps {
 
 export function createNutritionApi(deps: NutritionDeps): NutritionApi {
   const llm = deps.llm ?? NO_LLM;
+  // Every handler is declared `async`, not just returning a promise: a use
+  // case that threw on the spot would otherwise throw out of the handler
+  // itself, and a caller holding `.catch()` would never see it.
   return {
-    parseDayLog: (req) =>
-      parseDayLog(
+    async parseDayLog(req) {
+      return parseDayLog(
         { catalog: deps.catalog, llm, newId: deps.newId, timeoutMs: deps.timeoutMs },
         req,
-      ),
-    searchFoods: (req) => Promise.resolve(searchFoods({ catalog: deps.catalog }, req)),
-    getRemaining: (req) =>
-      Promise.resolve(getRemaining({ plan: deps.plan, dayLogs: deps.dayLogs }, req)),
+      );
+    },
+    async searchFoods(req) {
+      return searchFoods({ catalog: deps.catalog }, req);
+    },
+    async getRemaining(req) {
+      return getRemaining({ plan: deps.plan, dayLogs: deps.dayLogs }, req);
+    },
   };
 }

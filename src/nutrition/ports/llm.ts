@@ -26,6 +26,14 @@ export interface LlmItem {
   qty: number;
   unit: QuantityUnit;
   macros: Macros;
+  /**
+   * Which of the lines it was given this item is for, counting from zero.
+   *
+   * Without it there is no way to know WHICH line came back. Counting items
+   * against lines proves nothing: two items can both describe the first line
+   * while the second quietly ends up with no numbers and no complaint.
+   */
+  index?: number;
 }
 
 export interface LlmPort {
@@ -44,26 +52,41 @@ export interface LlmPort {
   estimate(lines: string[], signal: AbortSignal): Promise<unknown>;
 }
 
-/** The spellings a model might answer with, mapped to the three the domain knows. */
-const UNITS: Record<string, QuantityUnit> = {
-  g: "g",
-  gr: "g",
-  gram: "g",
-  grams: "g",
-  gramo: "g",
-  gramos: "g",
-  ml: "ml",
-  cc: "ml",
-  mililitro: "ml",
-  mililitros: "ml",
-  milliliter: "ml",
-  milliliters: "ml",
-  unit: "unit",
-  units: "unit",
-  u: "unit",
-  unidad: "unit",
-  unidades: "unit",
-};
+/**
+ * The spellings a model might answer with, mapped to the three the domain
+ * knows.
+ *
+ * A Map and not an object literal: a plain object answers to "constructor",
+ * "toString" and every other prototype key, so `{ unit: "constructor" }` would
+ * pass the check and leave a function where a unit should be.
+ */
+const UNITS = new Map<string, QuantityUnit>([
+  ["g", "g"],
+  ["gr", "g"],
+  ["gram", "g"],
+  ["grams", "g"],
+  ["gramo", "g"],
+  ["gramos", "g"],
+  ["ml", "ml"],
+  ["cc", "ml"],
+  ["mililitro", "ml"],
+  ["mililitros", "ml"],
+  ["milliliter", "ml"],
+  ["milliliters", "ml"],
+  ["unit", "unit"],
+  ["units", "unit"],
+  ["u", "unit"],
+  ["unidad", "unit"],
+  ["unidades", "unit"],
+]);
+
+/**
+ * Generous ceilings. They are not a nutrition opinion, they are a sanity
+ * check: an estimate of 1e15 kcal is not a big meal, it is a broken answer,
+ * and it would land in the day's total as if it were real.
+ */
+const MAX_QTY = 100_000;
+const MAX_MACRO = 100_000;
 
 export interface LlmRejection {
   /** The item as it arrived, stringified, so the caller can show what was discarded. */
@@ -116,16 +139,18 @@ export function parseLlmItems(raw: unknown): LlmParseResult {
       continue;
     }
     const e = entry as Record<string, unknown>;
+    const index = e.index;
     items.push({
       name: String(e.name).trim(),
       qty: e.qty as number,
-      unit: UNITS[String(e.unit).trim().toLowerCase()],
+      unit: UNITS.get(String(e.unit).trim().toLowerCase()) as QuantityUnit,
       macros: {
         kcal: e.kcal as number,
         protein: e.protein as number,
         carbs: e.carbs as number,
         fat: e.fat as number,
       },
+      ...(typeof index === "number" && Number.isInteger(index) && index >= 0 ? { index } : {}),
     });
   }
 
@@ -138,12 +163,13 @@ function validate(entry: unknown): string | null {
   const e = entry as Record<string, unknown>;
 
   if (typeof e.name !== "string" || e.name.trim() === "") return "Sin nombre";
-  if (!finite(e.qty) || e.qty <= 0) return "Cantidad invalida";
-  if (typeof e.unit !== "string" || !UNITS[e.unit.trim().toLowerCase()]) {
+  if (!finite(e.qty) || e.qty <= 0 || e.qty > MAX_QTY) return "Cantidad invalida";
+  if (typeof e.unit !== "string" || !UNITS.has(e.unit.trim().toLowerCase())) {
     return `Unidad desconocida: ${String(e.unit)}`;
   }
   for (const k of ["kcal", "protein", "carbs", "fat"] as const) {
-    if (macroOf(e[k]) === null) return `Macro invalido: ${k}`;
+    const v = macroOf(e[k]);
+    if (v === null || v > MAX_MACRO) return `Macro invalido: ${k}`;
   }
   return null;
 }

@@ -11,13 +11,13 @@
    is built by whoever is showing it.
    ========================================================= */
 
-import type { Macros } from "../domain/types";
+import type { DayLog, DayPlan, Macros } from "../domain/types";
 import { computeRemaining, deviation } from "../domain/remaining";
 import { zeroMacros } from "../domain/macros";
 import type { DayLogReader, PlanReader } from "../ports/storage";
 import { emptyDayLog } from "../ports/storage";
 import type { Notice } from "./notices";
-import { notice } from "./notices";
+import { errText, notice } from "./notices";
 
 export interface RemainingRequest {
   /** ISO date, `YYYY-MM-DD`. */
@@ -56,7 +56,20 @@ const nothing = (date: string, notices: Notice[]): RemainingResponse => ({
 });
 
 export function getRemaining(deps: RemainingDeps, req: RemainingRequest): RemainingResponse {
-  const plan = deps.plan.get(req.date);
+  let plan: DayPlan | null;
+  let log: DayLog;
+  try {
+    plan = deps.plan.get(req.date);
+    log = deps.dayLogs.get(req.date) ?? emptyDayLog(req.date);
+  } catch (e) {
+    // A reader that breaks must not escape as an exception. The rule is that
+    // every failure comes back as something the caller can show, and a
+    // storage failure is no different from a model failure.
+    return nothing(req.date, [
+      notice("no-plan", `No se pudieron leer los datos del ${req.date}: ${errText(e)}.`),
+    ]);
+  }
+
   if (!plan) {
     // Without a plan there is nothing to be remaining FROM. Saying so beats
     // answering with four zeros that look like a day eaten exactly to target.
@@ -68,7 +81,6 @@ export function getRemaining(deps: RemainingDeps, req: RemainingRequest): Remain
     ]);
   }
 
-  const log = deps.dayLogs.get(req.date) ?? emptyDayLog(req.date);
   const result = computeRemaining(plan, log);
 
   const drift: Record<string, Macros> = {};

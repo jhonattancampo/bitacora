@@ -66,6 +66,28 @@ describe("creerle a un item", () => {
     }
   });
 
+  it("no le cree a una clave del prototipo disfrazada de unidad", () => {
+    // Con un objeto literal, UNITS["constructor"] devuelve una funcion y el
+    // item pasaba la validacion con una funcion donde va una unidad.
+    for (const u of ["constructor", "toString", "valueOf", "__proto__"]) {
+      const r = parseLlmItems({ items: [item({ unit: u })] });
+      expect(r.items).toEqual([]);
+      expect(r.rejected[0].reason).toContain("Unidad desconocida");
+    }
+  });
+
+  it("rechaza numeros absurdos, que no son una comida grande sino una respuesta rota", () => {
+    expect(parseLlmItems({ items: [item({ qty: 1e15 })] }).rejected).toHaveLength(1);
+    expect(parseLlmItems({ items: [item({ kcal: 1e15 })] }).rejected).toHaveLength(1);
+  });
+
+  it("se queda con el indice de linea cuando viene, y lo ignora si es basura", () => {
+    expect(parseLlmItems({ items: [item({ index: 2 })] }).items[0].index).toBe(2);
+    expect(parseLlmItems({ items: [item({ index: -1 })] }).items[0].index).toBeUndefined();
+    expect(parseLlmItems({ items: [item({ index: "dos" })] }).items[0].index).toBeUndefined();
+    expect(parseLlmItems({ items: [item()] }).items[0].index).toBeUndefined();
+  });
+
   it("un item podrido no se lleva puestos a los sanos", () => {
     const r = parseLlmItems({ items: [item(), item({ qty: -1 }), item({ name: "Tarta" })] });
     expect(r.items.map((i) => i.name)).toEqual(["Guiso", "Tarta"]);

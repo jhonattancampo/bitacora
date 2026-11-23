@@ -4,7 +4,7 @@
    error que termine callado.
    ========================================================= */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { parseDayLog, LLM_TIMEOUT_MS, quantityText } from "../src/nutrition/app/parse-day-log";
 import type { LlmPort } from "../src/nutrition/ports/llm";
 import type { Food } from "../src/nutrition/domain/types";
@@ -230,5 +230,173 @@ describe("sacar del texto las palabras que nombraron al alimento", () => {
 
   it("deja afuera solo las palabras que matchearon", () => {
     expect(quantityText("2 rebanadas de pan", ["pan"])).toBe("2 rebanadas de");
+  });
+});
+
+describe("la coma decimal NO corta una linea en dos", () => {
+  it("'1,5 tazas de arroz' son 270 g, no 900", async () => {
+    // Cortando en toda coma, esto daba ["1", "5 tazas de arroz"]: cinco tazas,
+    // 900 g, guardadas como catalogo y sin un solo aviso. El peor error
+    // posible, porque el numero es plausible.
+    const r = await parseDayLog(deps(llmSpy()), req("1,5 tazas de arroz integral"));
+    expect(r.items).toHaveLength(1);
+    expect(r.items[0]).toMatchObject({ qty: 270, unit: "g", source: "catalog" });
+    expect(r.notices).toEqual([]);
+  });
+
+  it("y tampoco manda un '1' suelto al modelo", async () => {
+    const llm = llmSpy({ payload: { items: [] } });
+    await parseDayLog(deps(llm), req("1,5 tazas de arroz integral"));
+    expect(llm.calls).toEqual([]);
+  });
+
+  it("'150,5 g de pollo' se lee entero", async () => {
+    const r = await parseDayLog(deps(llmSpy()), req("150,5 g de pollo"));
+    expect(r.items[0].qty).toBe(150.5);
+  });
+
+  it("pero la coma entre comidas sigue separando", async () => {
+    const r = await parseDayLog(deps(llmSpy()), req("150 g de pollo,100 g de arroz integral"));
+    expect(r.items).toHaveLength(2);
+  });
+
+  it("y 'una taza y media' no pierde la mitad", async () => {
+    const r = await parseDayLog(deps(llmSpy()), req("1 y media taza de arroz integral"));
+    expect(r.items[0].qty).toBe(270);
+  });
+});
+
+describe("atar cada estimacion a su linea", () => {
+  const dosLineas = "un guiso de mi abuela, una tarta rarisima";
+
+  it("si dos items hablan de la misma linea, la otra se reporta sin numeros", async () => {
+    // Las cantidades coinciden (2 items, 2 lineas) pero la cobertura no.
+    // Contar no alcanza: antes esto volvia limpio, con notices vacio.
+    const payload = {
+      items: [
+        {
+          index: 0,
+          name: "Guiso",
+          qty: 300,
+          unit: "g",
+          kcal: 400,
+          protein: 20,
+          carbs: 40,
+          fat: 15,
+        },
+        {
+          index: 0,
+          name: "Guiso otra vez",
+          qty: 50,
+          unit: "g",
+          kcal: 60,
+          protein: 3,
+          carbs: 6,
+          fat: 2,
+        },
+      ],
+    };
+    const r = await parseDayLog(deps(llmSpy({ payload })), req(dosLineas));
+
+    expect(r.unresolved).toEqual(["una tarta rarisima"]);
+    expect(r.notices.map((n) => n.kind)).toContain("unresolved");
+    expect(r.notices.find((n) => n.kind === "unresolved")?.lines).toEqual(["una tarta rarisima"]);
+  });
+
+  it("el aviso nombra SOLO la linea que fallo, no todas las que se mandaron", async () => {
+    const payload = {
+      items: [
+        {
+          index: 0,
+          name: "Guiso",
+          qty: 300,
+          unit: "g",
+          kcal: 400,
+          protein: 20,
+          carbs: 40,
+          fat: 15,
+        },
+      ],
+    };
+    const r = await parseDayLog(deps(llmSpy({ payload })), req(dosLineas));
+    const aviso = r.notices.find((n) => n.kind === "unresolved");
+    expect(aviso?.lines).toEqual(["una tarta rarisima"]);
+    expect(aviso?.message).not.toContain("guiso de mi abuela");
+  });
+
+  it("si cubre todo, no sobra nada ni se avisa de mas", async () => {
+    const payload = {
+      items: [
+        {
+          index: 0,
+          name: "Guiso",
+          qty: 300,
+          unit: "g",
+          kcal: 400,
+          protein: 20,
+          carbs: 40,
+          fat: 15,
+        },
+        { index: 1, name: "Tarta", qty: 200, unit: "g", kcal: 350, protein: 9, carbs: 30, fat: 20 },
+      ],
+    };
+    const r = await parseDayLog(deps(llmSpy({ payload })), req(dosLineas));
+    expect(r.unresolved).toEqual([]);
+    expect(r.notices).toEqual([]);
+  });
+
+  it("si el modelo no dice a que linea pertenece cada item, lo dice y pide revisar", async () => {
+    const payload = {
+      items: [
+        { name: "Guiso", qty: 300, unit: "g", kcal: 400, protein: 20, carbs: 40, fat: 15 },
+        { name: "Tarta", qty: 200, unit: "g", kcal: 350, protein: 9, carbs: 30, fat: 20 },
+      ],
+    };
+    const r = await parseDayLog(deps(llmSpy({ payload })), req(dosLineas));
+    expect(r.notices.map((n) => n.kind)).toContain("partial");
+    expect(r.items).toHaveLength(2);
+  });
+});
+
+describe("no dejar timers colgados", () => {
+  const sinTimers = async (estimate: () => never | Promise<unknown>) => {
+    vi.useFakeTimers();
+    try {
+      const puerto: LlmPort = { isAvailable: () => true, estimate };
+      const r = await parseDayLog(deps(puerto), req("un guiso"));
+      expect(r.notices[0].kind).toBe("llm-failed");
+      // El timeout de 20 s seguia vivo para abortar algo que ya habia terminado.
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  };
+
+  it("cuando el puerto rompe en el acto", async () => {
+    await sinTimers((() => {
+      throw new Error("boom");
+    }) as () => never);
+  });
+
+  it("cuando el puerto devuelve algo que no es una promesa", async () => {
+    await sinTimers((() => ({ cualquier: "cosa" })) as unknown as () => Promise<unknown>);
+  });
+});
+
+describe("entradas rotas", () => {
+  it("sin texto avisa en vez de tirar", async () => {
+    const r = await parseDayLog(deps(llmSpy()), {
+      date: "2026-11-23",
+      slotId: "cena",
+    } as unknown as { date: string; slotId: string; text: string });
+    expect(r.notices[0].kind).toBe("empty");
+  });
+});
+
+describe("una palabra repetida que es nombre Y cantidad", () => {
+  it("'tres pizzas tres quesos' son TRES pizzas", async () => {
+    // El nombre del alimento gasta un "tres"; el otro es la cantidad.
+    const r = await parseDayLog(deps(llmSpy()), req("tres pizzas tres quesos"));
+    expect(r.items[0]).toMatchObject({ qty: 3, unit: "unit", name: "Pizza tres quesos" });
   });
 });

@@ -66,6 +66,8 @@ const COUNT_WORDS: Record<string, number> = {
 const EXPLICIT =
   /(\d{1,3}(?:\.\d{3})+|\d+(?:[.,]\d+)?)\s*(kilogramos|kilogramo|kilos|kilo|kgs|kg|gramos|gramo|grs|gr|g|mililitros|mililitro|litros|litro|lts|lt|l|ml|cc)\b/;
 
+const HALF_WORDS = new Set(["medio", "media"]);
+
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 /**
@@ -73,13 +75,16 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
  * dot for thousands. "1.500" is fifteen hundred grams, not one and a half.
  */
 export const parseDecimal = (raw: string): number | null => {
-  if (/^\d{1,3}(?:\.\d{3})+$/.test(raw)) return parseInt(raw.replace(/\./g, ""), 10);
-  if (/^\d+\/\d+$/.test(raw)) {
-    const [a, b] = raw.split("/").map(Number);
+  const t = raw.trim();
+  if (/^\d{1,3}(?:\.\d{3})+$/.test(t)) return parseInt(t.replace(/\./g, ""), 10);
+  if (/^\d+\/\d+$/.test(t)) {
+    const [a, b] = t.split("/").map(Number);
     return b === 0 ? null : a / b;
   }
-  const n = parseFloat(raw.replace(",", "."));
-  return isNaN(n) ? null : n;
+  // Strict on purpose. parseFloat reads "150 g de pollo" as 150 and throws the
+  // rest away, so anything asking "is this text a number?" would be told yes.
+  if (!/^\d+(?:[.,]\d+)?$/.test(t)) return null;
+  return parseFloat(t.replace(",", "."));
 };
 
 /** A token as a number, whether it was typed in digits, as a fraction, or in words. */
@@ -89,17 +94,35 @@ export const numberOf = (token: string | undefined): number | null => {
   return WORD_NUMBERS[token] ?? null;
 };
 
+/** True when the whole text is a number and nothing else, digits or words. */
+export const isBareNumber = (text: string): boolean => {
+  const t = text.trim().toLowerCase();
+  return t !== "" && numberOf(normalize(t)) !== null;
+};
+
 /**
- * The number sitting in front of position `i`, with "1 1/2" read as one and a
- * half rather than as a half.
+ * The number sitting in front of position `i`.
+ *
+ * Two ways of writing one and a half have to survive this: "1 1/2 tazas" and
+ * "1 y media taza". Both read as a half on their own, and both mean more.
  */
 const numberBefore = (ts: string[], i: number): number | null => {
   const n = numberOf(ts[i - 1]);
   if (n === null) return null;
+
   if (/^\d+\/\d+$/.test(ts[i - 1] ?? "")) {
     const whole = numberOf(ts[i - 2]);
     if (whole !== null && Number.isInteger(whole)) return whole + n;
   }
+
+  // "media" after a whole number adds to it instead of replacing it, with or
+  // without the "y" that the line splitter may already have taken out.
+  if (n === 0.5 && HALF_WORDS.has(ts[i - 1] ?? "")) {
+    const back = ts[i - 2] === "y" ? i - 3 : i - 2;
+    const whole = numberOf(ts[back]);
+    if (whole !== null && Number.isInteger(whole)) return whole + n;
+  }
+
   return n;
 };
 
