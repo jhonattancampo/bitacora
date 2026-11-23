@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { searchFoods, bestFood, MIN_SCORE } from "../src/nutrition/domain/search";
 import { stem } from "../src/nutrition/domain/text";
-import { weightOf } from "../src/nutrition/domain/generic-words";
+import { weightOf, MIN_WORD_WEIGHT } from "../src/nutrition/domain/generic-words";
 import type { Food } from "../src/nutrition/domain/types";
 
 const food = (name: string, over: Partial<Food> = {}): Food => ({
@@ -116,13 +116,33 @@ describe("los alias", () => {
   });
 });
 
-describe("LIMITACION CONOCIDA del piso de 4", () => {
-  it("deja afuera a los alimentos de nombre corto: 'pan' pesa 3 y nunca llega", () => {
-    const catalogo = [food("Pan integral", { basis: "perUnit", unitGrams: 30 })];
-    // Esto NO es el comportamiento deseable, es el que pide la regla del spec.
-    // Queda cubierto con un test para que se vea, no para bendecirlo.
-    expect(searchFoods(catalogo, "2 rebanadas de pan")).toEqual([]);
-    expect(searchFoods(catalogo, "pan", 3)[0].food.name).toBe("Pan integral");
+describe("los alimentos de nombre corto", () => {
+  const catalogo = [
+    food("Pan lactal", { basis: "perUnit", unitGrams: 30 }),
+    food("Papa"),
+    food("Uva"),
+  ];
+
+  it("se encuentran, aunque su nombre mida menos que el piso de puntaje", () => {
+    // Por largo, "pan" vale 3 contra un piso de 4: antes no habia forma de
+    // encontrarlo. Y era el alimento del ejemplo del propio spec.
+    expect(bestFood(catalogo, "pan")?.name).toBe("Pan lactal");
+    expect(bestFood(catalogo, "papa")?.name).toBe("Papa");
+    expect(bestFood(catalogo, "2 rebanadas de pan")?.name).toBe("Pan lactal");
+  });
+
+  it("tambien en plural", () => {
+    expect(bestFood(catalogo, "uvas")?.name).toBe("Uva");
+  });
+
+  it("el piso del peso y el piso del puntaje son el mismo numero", () => {
+    // Si se separan, una palabra que nombra al alimento deja de alcanzar sola.
+    expect(MIN_WORD_WEIGHT).toBe(MIN_SCORE);
+  });
+
+  it("pero una palabra de dos letras no alcanza sola: ahi solo hay ruido", () => {
+    expect(weightOf("ya")).toBe(2);
+    expect(weightOf("pan")).toBe(MIN_SCORE);
   });
 });
 

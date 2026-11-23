@@ -84,10 +84,31 @@ export const isStopWord = (root: string): boolean => STOP_WORDS.has(root);
 export const isGenericWord = (root: string): boolean => GENERIC_WORDS.has(root);
 
 /**
- * What one matched root is worth. A descriptive word is worth its length, so
- * "pechuga" outweighs "pollo" and both outweigh noise; a generic one is worth 1.
+ * A real word is worth at least this much, however short it is.
+ *
+ * Length alone left short foods unreachable: "pan" is worth 3 against a
+ * threshold of 4, and so are "papa", "uva", "ajo", "sal" and "pavo" — none of
+ * them could ever be found, including the one the spec uses in its own worked
+ * example. The floor has to match search.ts's MIN_SCORE, and a test holds the
+ * two together.
+ *
+ * Three letters is where a word starts counting as one. Below that the floor
+ * would hand noise like "ya" or "no" the power to match a food on its own.
+ */
+export const MIN_WORD_WEIGHT = 4;
+
+const REAL_WORD_LENGTH = 3;
+
+/**
+ * What one matched root is worth.
+ *
+ * A descriptive word is worth its length, so "pechuga" outweighs "pollo" and
+ * both outweigh noise, but never less than the threshold: a word that names
+ * the food is enough on its own. A generic one is worth 1, so it can break a
+ * tie and never make a match by itself. Grammar is worth nothing.
  */
 export const weightOf = (root: string): number => {
   if (isStopWord(root)) return 0;
-  return isGenericWord(root) ? 1 : root.length;
+  if (isGenericWord(root)) return 1;
+  return root.length >= REAL_WORD_LENGTH ? Math.max(root.length, MIN_WORD_WEIGHT) : root.length;
 };
